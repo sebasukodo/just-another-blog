@@ -15,7 +15,10 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq" //sql driver
 	"github.com/pressly/goose/v3"
+	"github.com/sebasukodo/just-another-blog/backend/internal/auth"
 	"github.com/sebasukodo/just-another-blog/backend/internal/config"
+	"github.com/sebasukodo/just-another-blog/backend/internal/database"
+	"github.com/sebasukodo/just-another-blog/backend/internal/handler"
 )
 
 const filepathRoot = "./static"
@@ -62,7 +65,11 @@ func run(ctx context.Context, cancel context.CancelFunc) int {
 	}
 	logger.Debug("Migrations completed successfully!")
 
-	s := newServer(logger, cancel)
+	dbQueries := database.New(db)
+	authService := auth.NewService(cfg.TokenSecret, cfg.TokenIssuer, logger)
+	handler := handler.NewHandler(dbQueries, logger, cfg, authService)
+
+	s := newServer(handler, cancel)
 	var serverErr error
 	go func() {
 		serverErr = s.start()

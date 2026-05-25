@@ -7,29 +7,33 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+
+	"github.com/sebasukodo/just-another-blog/backend/internal/handler"
 )
 
 type server struct {
 	httpServer *http.Server
-	logger     *slog.Logger
+	handler    *handler.Handler
 	cancel     context.CancelFunc
 }
 
-func newServer(logger *slog.Logger, cancel context.CancelFunc) *server {
+func newServer(h *handler.Handler, cancel context.CancelFunc) *server {
 	mux := http.NewServeMux()
 
 	s := &server{
-		logger: logger,
-		cancel: cancel,
+		handler: h,
+		cancel:  cancel,
 	}
 
 	s.httpServer = &http.Server{
 		Addr:    fmt.Sprintf(":%v", serverPort),
-		Handler: requestLogger(logger)(mux),
+		Handler: requestLogger(h.Logger)(mux),
 	}
 
 	fileServerHandler := http.StripPrefix("/static/", http.FileServer(http.Dir(filepathRoot)))
 	mux.Handle("/static/", fileServerHandler)
+
+	mux.HandleFunc("POST /api/users", h.RegisterUser)
 
 	return s
 }
@@ -39,7 +43,7 @@ func (s *server) start() error {
 	if err != nil {
 		return err
 	}
-	s.logger.Debug(fmt.Sprintf("Server is running on port %v", serverPort))
+	s.handler.Logger.Debug(fmt.Sprintf("Server is running on port %v", serverPort))
 	if err := s.httpServer.Serve(listener); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
@@ -47,7 +51,7 @@ func (s *server) start() error {
 }
 
 func (s *server) shutdown(ctx context.Context) error {
-	s.logger.Debug("Server is shutting down...")
+	s.handler.Logger.Debug("Server is shutting down...")
 	return s.httpServer.Shutdown(ctx)
 }
 
