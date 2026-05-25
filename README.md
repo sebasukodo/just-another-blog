@@ -5,7 +5,7 @@ This project is a self-hostable fullstack blogging platform built with Go and Re
 The project is inspired by the excellent [RealWorld](https://github.com/realworld-apps/realworld) specification and aims to provide a clean, modern reference implementation for a real-world web application.
 
 ## Quick Start
-To run the project locally, see [Run Development Server](##run-development-server).
+To run the project locally, see [Run Development Server](#run-development-server).
 
 You will also need a PostgreSQL database running either locally or inside a Docker container.
 
