@@ -218,23 +218,24 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		updateInfo.HashedPassword = stringToNullString(hashPW)
 	}
 
-	updateInfo.Bio = pointerStringToNullString(userInfo.User.Bio)
-	updateInfo.Image = pointerStringToNullString(userInfo.User.Image)
-
 	if userInfo.User.Bio != nil && *userInfo.User.Bio == "" {
-		userInfo.User.Bio = nil
 		_, err := h.DbQueries.ClearUserBio(r.Context(), userID)
 		if err != nil {
 			h.RespondWithDatabaseError(w, err)
+			return
 		}
+	} else {
+		updateInfo.Bio = pointerStringToNullString(userInfo.User.Bio)
 	}
 
 	if userInfo.User.Image != nil && *userInfo.User.Image == "" {
-		userInfo.User.Image = nil
 		_, err := h.DbQueries.ClearUserImage(r.Context(), userID)
 		if err != nil {
 			h.RespondWithDatabaseError(w, err)
+			return
 		}
+	} else {
+		updateInfo.Image = pointerStringToNullString(userInfo.User.Image)
 	}
 
 	user, err := h.DbQueries.UpdateUserByID(r.Context(), updateInfo)
