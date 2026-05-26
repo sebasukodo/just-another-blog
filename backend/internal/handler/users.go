@@ -15,14 +15,23 @@ type RegisterRequest struct {
 	User RegisterUser `json:"user"`
 }
 
-type Respond struct {
-	User RespondUser `json:"user"`
-}
-
 type RegisterUser struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type LoginRequest struct {
+	User LoginUser `json:"user"`
+}
+
+type LoginUser struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type Respond struct {
+	User RespondUser `json:"user"`
 }
 
 type RespondUser struct {
@@ -37,7 +46,8 @@ const JWTExpiresIn = time.Duration(15) * time.Minute
 
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
-	decoder := json.NewDecoder(r.Body)
+	limitedRequest := http.MaxBytesReader(w, r.Body, 2048)
+	decoder := json.NewDecoder(limitedRequest)
 
 	userInfo := RegisterRequest{}
 
@@ -64,7 +74,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	token, err := h.Auth.MakeJWT(user.ID, JWTExpiresIn)
 	if err != nil {
-		h.RespondWithError(w, 500, "User registered successfully, but could not create session", fmt.Sprintf("User %v registered, but could not create session: %v", user.ID, err))
+		h.RespondWithError(w, 201, "User registered successfully, but could not create session", fmt.Sprintf("User %v registered, but could not create session: %v", user.ID, err))
 		return
 	}
 
@@ -80,6 +90,54 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	h.RespondWithJSON(w, 201, respBody)
 
+}
+
+func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
+
+	limitedRequest := http.MaxBytesReader(w, r.Body, 2048)
+	decoder := json.NewDecoder(limitedRequest)
+
+	userInfo := LoginRequest{}
+
+	if err := decoder.Decode(&userInfo); err != nil {
+		h.RespondWithError(w, 401, "Invalid Request Body", err.Error())
+		return
+	}
+
+	user, err := h.DbQueries.GetUserByEmail(r.Context(), userInfo.User.Email)
+	if err != nil {
+		h.RespondWithError(w, 401, "Access Denied", err.Error())
+		return
+	}
+
+	matching, err := auth.CheckPasswordHash(userInfo.User.Password, user.HashedPassword)
+	if err != nil {
+		h.RespondWithError(w, 401, "Access Denied", fmt.Sprintf("Login attempt failed for user %v - %v", user.ID, err))
+		return
+	}
+
+	if !matching {
+		h.RespondWithError(w, 401, "Access Denied", fmt.Sprintf("Login attempt failed for user %v - wrong password", user.ID))
+		return
+	}
+
+	token, err := h.Auth.MakeJWT(user.ID, JWTExpiresIn)
+	if err != nil {
+		h.RespondWithError(w, 500, "Access Denied", fmt.Sprintf("User %v logged in successfully, but could not create session: %v", user.ID, err))
+		return
+	}
+
+	respBody := Respond{
+		User: RespondUser{
+			Username: user.Username,
+			Email:    user.Email,
+			Token:    token,
+			Bio:      nullStringToString(user.Bio),
+			Image:    nullStringToString(user.Image),
+		},
+	}
+
+	h.RespondWithJSON(w, 200, respBody)
 }
 
 func nullStringToString(text sql.NullString) *string {

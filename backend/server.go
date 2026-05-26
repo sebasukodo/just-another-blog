@@ -34,6 +34,7 @@ func newServer(h *handler.Handler, cancel context.CancelFunc) *server {
 	mux.Handle("/static/", fileServerHandler)
 
 	mux.HandleFunc("POST /api/users", h.RegisterUser)
+	mux.HandleFunc("POST /api/users/login", h.LoginUser)
 
 	return s
 }
