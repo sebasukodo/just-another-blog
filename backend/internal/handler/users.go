@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sebasukodo/just-another-blog/backend/internal/auth"
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
@@ -129,6 +130,34 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	token, err := h.Auth.MakeJWT(user.ID, JWTExpiresIn)
 	if err != nil {
 		h.RespondWithError(w, 500, "Access Denied", fmt.Sprintf("User %v logged in successfully, but could not create session: %v", user.ID, err))
+		return
+	}
+
+	respBody := Respond{
+		User: RespondUser{
+			Username: user.Username,
+			Email:    user.Email,
+			Token:    token,
+			Bio:      nullStringToString(user.Bio),
+			Image:    nullStringToString(user.Image),
+		},
+	}
+
+	h.RespondWithJSON(w, 200, respBody)
+}
+
+func (h *Handler) CurrentUser(w http.ResponseWriter, r *http.Request) {
+
+	userID := r.Context().Value(contextKeyUserID).(uuid.UUID)
+	token := r.Context().Value(contextKeyToken).(string)
+
+	user, err := h.DbQueries.GetUserByID(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			h.RespondWithError(w, 401, "Access Denied", fmt.Sprintf("CurrentUser request failed, no user found for id %v", userID))
+		} else {
+			h.RespondWithDatabaseError(w, err)
+		}
 		return
 	}
 

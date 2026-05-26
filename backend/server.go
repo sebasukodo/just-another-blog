@@ -35,6 +35,7 @@ func newServer(h *handler.Handler, cancel context.CancelFunc) *server {
 
 	mux.HandleFunc("POST /api/users", h.RegisterUser)
 	mux.HandleFunc("POST /api/users/login", h.LoginUser)
+	mux.HandleFunc("GET /api/user", h.AuthMiddleware(h.CurrentUser))
 
 	return s
 }
