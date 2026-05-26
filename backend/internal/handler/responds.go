@@ -2,12 +2,21 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/lib/pq"
 )
 
 type returnError struct {
 	Error string `json:"error"`
+}
+
+type DBError struct {
+	Code       int
+	Message    string
+	LogMessage string
 }
 
 func (h *Handler) RespondWithError(w http.ResponseWriter, code int, errorMsg, logMsg string) {
@@ -20,6 +29,24 @@ func (h *Handler) RespondWithError(w http.ResponseWriter, code int, errorMsg, lo
 
 	h.RespondWithJSON(w, code, respBody)
 
+}
+
+func (h *Handler) RespondWithDatabaseError(w http.ResponseWriter, err error) {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		switch pqErr.Code {
+		case "23505":
+			h.RespondWithError(w, 409, "Resource already exists", fmt.Sprintf("Database resource already exists: %v", err))
+			return
+		case "23502":
+			h.RespondWithError(w, 400, "Missing required field", fmt.Sprintf("Missing required field for database request: %v", err))
+			return
+		default:
+			h.RespondWithError(w, 500, "Internal Server Error", fmt.Sprintf("Database Error occured: %v", err))
+			return
+		}
+	}
+	h.RespondWithError(w, 500, "Internal Server Error", fmt.Sprintf("Database Error occured but could not catch specific pqErr: %v", err))
 }
 
 func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {

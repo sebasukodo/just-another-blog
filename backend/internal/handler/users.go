@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -68,7 +69,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		HashedPassword: hashedPW,
 	})
 	if err != nil {
-		h.RespondWithError(w, 500, "User could not be registered", fmt.Sprintf("Could not register user %v: %v", userInfo.User.Email, err))
+		h.RespondWithDatabaseError(w, err)
 		return
 	}
 
@@ -106,7 +107,11 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.DbQueries.GetUserByEmail(r.Context(), userInfo.User.Email)
 	if err != nil {
-		h.RespondWithError(w, 401, "Access Denied", err.Error())
+		if errors.Is(err, sql.ErrNoRows) {
+			h.RespondWithError(w, 401, "Access Denied", fmt.Sprintf("Login attempt failed, no user found for email %v", userInfo.User.Email))
+		} else {
+			h.RespondWithDatabaseError(w, err)
+		}
 		return
 	}
 
