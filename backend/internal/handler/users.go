@@ -32,6 +32,18 @@ type LoginUser struct {
 	Password string `json:"password"`
 }
 
+type UpdateUserRequest struct {
+	User UpdateUser `json:"user"`
+}
+
+type UpdateUser struct {
+	Username string  `json:"username"`
+	Email    string  `json:"email"`
+	Password string  `json:"password"`
+	Bio      *string `json:"bio"`
+	Image    *string `json:"image"`
+}
+
 type Respond struct {
 	User RespondUser `json:"user"`
 }
@@ -85,8 +97,8 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 			Username: user.Username,
 			Email:    user.Email,
 			Token:    token,
-			Bio:      nullStringToString(user.Bio),
-			Image:    nullStringToString(user.Image),
+			Bio:      nullStringToStringPointer(user.Bio),
+			Image:    nullStringToStringPointer(user.Image),
 		},
 	}
 
@@ -138,8 +150,8 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 			Username: user.Username,
 			Email:    user.Email,
 			Token:    token,
-			Bio:      nullStringToString(user.Bio),
-			Image:    nullStringToString(user.Image),
+			Bio:      nullStringToStringPointer(user.Bio),
+			Image:    nullStringToStringPointer(user.Image),
 		},
 	}
 
@@ -166,15 +178,117 @@ func (h *Handler) CurrentUser(w http.ResponseWriter, r *http.Request) {
 			Username: user.Username,
 			Email:    user.Email,
 			Token:    token,
-			Bio:      nullStringToString(user.Bio),
-			Image:    nullStringToString(user.Image),
+			Bio:      nullStringToStringPointer(user.Bio),
+			Image:    nullStringToStringPointer(user.Image),
 		},
 	}
 
 	h.RespondWithJSON(w, 200, respBody)
 }
 
-func nullStringToString(text sql.NullString) *string {
+func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+
+	userID := r.Context().Value(contextKeyUserID).(uuid.UUID)
+	token := r.Context().Value(contextKeyToken).(string)
+
+	decoder := json.NewDecoder(r.Body)
+
+	userInfo := UpdateUserRequest{}
+
+	if err := decoder.Decode(&userInfo); err != nil {
+		h.RespondWithError(w, 401, "Invalid Request Body", err.Error())
+		return
+	}
+
+	updateInfo := database.UpdateUserByIDParams{
+		ID: userID,
+	}
+	if userInfo.User.Username != "" {
+		updateInfo.Username = stringToNullString(userInfo.User.Username)
+	}
+	if userInfo.User.Email != "" {
+		updateInfo.Email = stringToNullString(userInfo.User.Email)
+	}
+	if userInfo.User.Password != "" {
+		hashPW, err := auth.HashPassword(userInfo.User.Password)
+		if err != nil {
+			h.RespondWithError(w, 500, "Could not hash new password", err.Error())
+			return
+		}
+		updateInfo.HashedPassword = stringToNullString(hashPW)
+	}
+
+	updateInfo.Bio = pointerStringToNullString(userInfo.User.Bio)
+	updateInfo.Image = pointerStringToNullString(userInfo.User.Image)
+
+	if userInfo.User.Bio != nil && *userInfo.User.Bio == "" {
+		userInfo.User.Bio = nil
+		_, err := h.DbQueries.ClearUserBio(r.Context(), userID)
+		if err != nil {
+			h.RespondWithDatabaseError(w, err)
+		}
+	}
+
+	if userInfo.User.Image != nil && *userInfo.User.Image == "" {
+		userInfo.User.Image = nil
+		_, err := h.DbQueries.ClearUserImage(r.Context(), userID)
+		if err != nil {
+			h.RespondWithDatabaseError(w, err)
+		}
+	}
+
+	user, err := h.DbQueries.UpdateUserByID(r.Context(), updateInfo)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			h.RespondWithError(w, 401, "Access Denied", fmt.Sprintf("UpdateUser request failed, no user found for id %v", userID))
+		} else {
+			h.RespondWithDatabaseError(w, err)
+		}
+		return
+	}
+
+	respBody := Respond{
+		User: RespondUser{
+			Username: user.Username,
+			Email:    user.Email,
+			Token:    token,
+			Bio:      nullStringToStringPointer(user.Bio),
+			Image:    nullStringToStringPointer(user.Image),
+		},
+	}
+
+	h.RespondWithJSON(w, 200, respBody)
+
+}
+
+// only for api testing
+func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(contextKeyUserID).(uuid.UUID)
+
+	if err := h.DbQueries.DeleteUserByID(r.Context(), userID); err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	w.WriteHeader(204)
+
+}
+
+func pointerStringToNullString(text *string) sql.NullString {
+	if text == nil {
+		return sql.NullString{Valid: false}
+	}
+	return sql.NullString{String: *text, Valid: *text != ""}
+}
+
+func stringToNullString(text string) sql.NullString {
+	return sql.NullString{
+		String: text,
+		Valid:  text != "",
+	}
+}
+
+func nullStringToStringPointer(text sql.NullString) *string {
 	if text.Valid {
 		return &text.String
 	}

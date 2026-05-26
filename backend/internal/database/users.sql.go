@@ -12,6 +12,54 @@ import (
 	"github.com/google/uuid"
 )
 
+const clearUserBio = `-- name: ClearUserBio :one
+UPDATE users
+SET bio = NULL,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, created_at, updated_at, username, email, hashed_password, bio, image
+`
+
+func (q *Queries) ClearUserBio(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRowContext(ctx, clearUserBio, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Username,
+		&i.Email,
+		&i.HashedPassword,
+		&i.Bio,
+		&i.Image,
+	)
+	return i, err
+}
+
+const clearUserImage = `-- name: ClearUserImage :one
+UPDATE users
+SET image = NULL,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, created_at, updated_at, username, email, hashed_password, bio, image
+`
+
+func (q *Queries) ClearUserImage(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRowContext(ctx, clearUserImage, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Username,
+		&i.Email,
+		&i.HashedPassword,
+		&i.Bio,
+		&i.Image,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, hashed_password, bio, image)
 VALUES(
@@ -54,6 +102,16 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deleteUserByID = `-- name: DeleteUserByID :exec
+DELETE FROM users
+WHERE id = $1
+`
+
+func (q *Queries) DeleteUserByID(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteUserByID, id)
+	return err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, created_at, updated_at, username, email, hashed_password, bio, image FROM users
 WHERE email = $1
@@ -82,6 +140,50 @@ WHERE id = $1
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	row := q.db.QueryRowContext(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Username,
+		&i.Email,
+		&i.HashedPassword,
+		&i.Bio,
+		&i.Image,
+	)
+	return i, err
+}
+
+const updateUserByID = `-- name: UpdateUserByID :one
+UPDATE users
+SET username = COALESCE($1, username),
+    email = COALESCE($2, email),
+    hashed_password = COALESCE($3, hashed_password),
+    bio = COALESCE($4, bio),
+    image = COALESCE($5, image),
+    updated_at = NOW()
+WHERE id = $6
+RETURNING id, created_at, updated_at, username, email, hashed_password, bio, image
+`
+
+type UpdateUserByIDParams struct {
+	Username       sql.NullString
+	Email          sql.NullString
+	HashedPassword sql.NullString
+	Bio            sql.NullString
+	Image          sql.NullString
+	ID             uuid.UUID
+}
+
+func (q *Queries) UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserByID,
+		arg.Username,
+		arg.Email,
+		arg.HashedPassword,
+		arg.Bio,
+		arg.Image,
+		arg.ID,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
