@@ -104,6 +104,55 @@ func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	h.RespondWithJSON(w, 201, respBody)
+
+}
+
+func (h *Handler) GetArticle(w http.ResponseWriter, r *http.Request) {
+
+	slug := r.PathValue("slug")
+
+	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			h.RespondWithError(w, 404, "Not Found", fmt.Sprintf("GetArticle request failed, no article found for slug %v", slug))
+		} else {
+			h.RespondWithDatabaseError(w, err)
+		}
+		return
+	}
+
+	tags, err := h.DbQueries.GetArticleTagsByArticleID(r.Context(), article.ID)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	if tags == nil {
+		tags = []string{}
+	}
+
+	user, err := h.DbQueries.GetUserByID(r.Context(), article.AuthorID)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	respBody := RespondArticle{
+		Article: Article{
+			Slug:        slug,
+			Title:       article.Title,
+			Description: article.Description,
+			Body:        article.Body,
+			TagList:     tags,
+			Author: Author{
+				Username: user.Username,
+				Bio:      nullStringToStringPointer(user.Bio),
+				Image:    nullStringToStringPointer(user.Image),
+			},
+		},
+	}
+
 	h.RespondWithJSON(w, 200, respBody)
 
 }

@@ -104,3 +104,53 @@ func (q *Queries) CreateTags(ctx context.Context, arg CreateTagsParams) (Tag, er
 	)
 	return i, err
 }
+
+const getArticleBySlug = `-- name: GetArticleBySlug :one
+SELECT id, created_at, updated_at, author_id, slug, title, description, body FROM articles WHERE slug = $1
+`
+
+func (q *Queries) GetArticleBySlug(ctx context.Context, slug string) (Article, error) {
+	row := q.db.QueryRowContext(ctx, getArticleBySlug, slug)
+	var i Article
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.AuthorID,
+		&i.Slug,
+		&i.Title,
+		&i.Description,
+		&i.Body,
+	)
+	return i, err
+}
+
+const getArticleTagsByArticleID = `-- name: GetArticleTagsByArticleID :many
+SELECT t.display_name FROM tags t
+JOIN article_tags at ON t.id = at.tag_id
+JOIN articles a ON at.article_id = a.id
+WHERE a.id = $1
+`
+
+func (q *Queries) GetArticleTagsByArticleID(ctx context.Context, id int64) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getArticleTagsByArticleID, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var display_name string
+		if err := rows.Scan(&display_name); err != nil {
+			return nil, err
+		}
+		items = append(items, display_name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

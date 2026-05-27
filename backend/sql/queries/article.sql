@@ -28,3 +28,12 @@ VALUES(
     $2
 )
 RETURNING *;
+
+-- name: GetArticleBySlug :one
+SELECT * FROM articles WHERE slug = $1;
+
+-- name: GetArticleTagsByArticleID :many
+SELECT t.display_name FROM tags t
+JOIN article_tags at ON t.id = at.tag_id
+JOIN articles a ON at.article_id = a.id
+WHERE a.id = $1;
