@@ -1,0 +1,139 @@
+package handler
+
+import (
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"regexp"
+	"strings"
+
+	"github.com/google/uuid"
+	"github.com/sebasukodo/just-another-blog/backend/internal/database"
+)
+
+type ArticleCreateRequest struct {
+	Article ArticleCreate `json:"article"`
+}
+
+type ArticleCreate struct {
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Body        string   `json:"body"`
+	TagList     []string `json:"tagList"`
+}
+
+type RespondArticle struct {
+	Article Article `json:"article"`
+}
+
+type Article struct {
+	Slug        string   `json:"slug"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Body        string   `json:"body"`
+	TagList     []string `json:"tagList"`
+	Author      Author   `json:"author"`
+}
+
+type Author struct {
+	Username string  `json:"username"`
+	Bio      *string `json:"bio"`
+	Image    *string `json:"image"`
+}
+
+func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
+
+	userID := r.Context().Value(contextKeyUserID).(uuid.UUID)
+
+	user, err := h.DbQueries.GetUserByID(r.Context(), userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			h.RespondWithError(w, 401, "Access Denied", fmt.Sprintf("CreateArticle request failed, no user found for id %v", userID))
+		} else {
+			h.RespondWithDatabaseError(w, err)
+		}
+		return
+	}
+
+	decoder := json.NewDecoder(r.Body)
+
+	articleInfo := ArticleCreateRequest{}
+
+	if err := decoder.Decode(&articleInfo); err != nil {
+		h.RespondWithError(w, 400, "Invalid Request Body", err.Error())
+		return
+	}
+
+	slug, err := generateSlug(articleInfo.Article.Title)
+	if err != nil {
+		h.RespondWithError(w, 500, "generating slug failed", err.Error())
+		return
+	}
+
+	article, err := h.DbQueries.CreateArticle(r.Context(), database.CreateArticleParams{
+		AuthorID:    userID,
+		Slug:        slug,
+		Title:       articleInfo.Article.Title,
+		Description: articleInfo.Article.Description,
+		Body:        articleInfo.Article.Body,
+	})
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	if err := h.saveTagsToDatabase(r, article.ID, articleInfo.Article.TagList); err != nil {
+		h.RespondWithError(w, 201, "Article created successfully, but could not store tags", fmt.Sprintf("Article %v created, but could not add tags %v: %v", article.ID, articleInfo.Article.TagList, err))
+		return
+	}
+
+	respBody := RespondArticle{
+		Article: Article{
+			Slug:        slug,
+			Title:       article.Title,
+			Description: article.Description,
+			Body:        article.Body,
+			TagList:     articleInfo.Article.TagList,
+			Author: Author{
+				Username: user.Username,
+				Bio:      nullStringToStringPointer(user.Bio),
+				Image:    nullStringToStringPointer(user.Image),
+			},
+		},
+	}
+
+	h.RespondWithJSON(w, 200, respBody)
+
+}
+
+func (h *Handler) saveTagsToDatabase(r *http.Request, articleID int64, tags []string) error {
+	for _, tag := range tags {
+		newTag, err := h.DbQueries.CreateTags(r.Context(), database.CreateTagsParams{
+			DisplayName:    tag,
+			NormalizedName: strings.ToLower(tag),
+		})
+		if err != nil {
+			return err
+		}
+		_, err = h.DbQueries.CreateArticleTags(r.Context(), database.CreateArticleTagsParams{
+			ArticleID: articleID,
+			TagID:     newTag.ID,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func generateSlug(title string) (string, error) {
+	result := strings.ToLower(title)
+	result = strings.ReplaceAll(result, " ", "-")
+	reg, err := regexp.Compile("[^a-z0-9-]+")
+	if err != nil {
+		return "", err
+	}
+	return reg.ReplaceAllString(result, ""), nil
+}

@@ -11,6 +11,30 @@ import (
 	"github.com/google/uuid"
 )
 
+type Article struct {
+	ID          int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	AuthorID    uuid.UUID
+	Slug        string
+	Title       string
+	Description string
+	Body        string
+}
+
+type ArticleTag struct {
+	ArticleID int64
+	TagID     int64
+}
+
+type Tag struct {
+	ID             int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	DisplayName    string
+	NormalizedName string
+}
+
 type User struct {
 	ID             uuid.UUID
 	CreatedAt      time.Time
