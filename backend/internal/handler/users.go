@@ -44,7 +44,7 @@ type UpdateUser struct {
 	Image    *string `json:"image"`
 }
 
-type Respond struct {
+type UserRespond struct {
 	User RespondUser `json:"user"`
 }
 
@@ -92,7 +92,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respBody := Respond{
+	respBody := UserRespond{
 		User: RespondUser{
 			Username: user.Username,
 			Email:    user.Email,
@@ -145,7 +145,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respBody := Respond{
+	respBody := UserRespond{
 		User: RespondUser{
 			Username: user.Username,
 			Email:    user.Email,
@@ -173,7 +173,7 @@ func (h *Handler) CurrentUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respBody := Respond{
+	respBody := UserRespond{
 		User: RespondUser{
 			Username: user.Username,
 			Email:    user.Email,
@@ -248,7 +248,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respBody := Respond{
+	respBody := UserRespond{
 		User: RespondUser{
 			Username: user.Username,
 			Email:    user.Email,
