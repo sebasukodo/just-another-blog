@@ -10,7 +10,12 @@ import (
 )
 
 type returnError struct {
-	Error string `json:"error"`
+	Error Error `json:"error"`
+}
+
+type Error struct {
+	Body string `json:"body"`
+	Code int    `json:"code"`
 }
 
 type DBError struct {
@@ -24,7 +29,10 @@ func (h *Handler) RespondWithError(w http.ResponseWriter, code int, errorMsg, lo
 	h.Logger.Error(logMsg)
 
 	respBody := returnError{
-		Error: errorMsg,
+		Error: Error{
+			Body: errorMsg,
+			Code: code,
+		},
 	}
 
 	h.RespondWithJSON(w, code, respBody)

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
@@ -29,12 +30,16 @@ type RespondArticle struct {
 }
 
 type Article struct {
-	Slug        string   `json:"slug"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Body        string   `json:"body"`
-	TagList     []string `json:"tagList"`
-	Author      Author   `json:"author"`
+	Slug           string    `json:"slug"`
+	Title          string    `json:"title"`
+	Description    string    `json:"description"`
+	Body           string    `json:"body"`
+	TagList        []string  `json:"tagList"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+	Favorited      bool      `json:"favorited"`
+	FavoritesCount int64     `json:"favoritesCount"`
+	Author         Author    `json:"author"`
 }
 
 type Author struct {
@@ -91,11 +96,15 @@ func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 
 	respBody := RespondArticle{
 		Article: Article{
-			Slug:        slug,
-			Title:       article.Title,
-			Description: article.Description,
-			Body:        article.Body,
-			TagList:     articleInfo.Article.TagList,
+			Slug:           slug,
+			Title:          article.Title,
+			Description:    article.Description,
+			Body:           article.Body,
+			TagList:        articleInfo.Article.TagList,
+			CreatedAt:      article.CreatedAt,
+			UpdatedAt:      article.UpdatedAt,
+			Favorited:      false,
+			FavoritesCount: 0,
 			Author: Author{
 				Username: user.Username,
 				Bio:      nullStringToStringPointer(user.Bio),
@@ -140,11 +149,15 @@ func (h *Handler) GetArticle(w http.ResponseWriter, r *http.Request) {
 
 	respBody := RespondArticle{
 		Article: Article{
-			Slug:        slug,
-			Title:       article.Title,
-			Description: article.Description,
-			Body:        article.Body,
-			TagList:     tags,
+			Slug:           slug,
+			Title:          article.Title,
+			Description:    article.Description,
+			Body:           article.Body,
+			TagList:        tags,
+			CreatedAt:      article.CreatedAt,
+			UpdatedAt:      article.UpdatedAt,
+			Favorited:      false,
+			FavoritesCount: 0,
 			Author: Author{
 				Username: user.Username,
 				Bio:      nullStringToStringPointer(user.Bio),
