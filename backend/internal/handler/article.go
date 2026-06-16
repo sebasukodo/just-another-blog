@@ -172,10 +172,7 @@ func (h *Handler) GetArticle(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) saveTagsToDatabase(r *http.Request, articleID int64, tags []string) error {
 	for _, tag := range tags {
-		newTag, err := h.DbQueries.CreateTags(r.Context(), database.CreateTagsParams{
-			DisplayName:    tag,
-			NormalizedName: strings.ToLower(tag),
-		})
+		newTag, err := h.DbQueries.CreateTags(r.Context(), strings.ToLower(tag))
 		if err != nil {
 			return err
 		}

@@ -10,15 +10,14 @@ VALUES(
 RETURNING *;
 
 -- name: CreateTags :one
-INSERT INTO tags (display_name, normalized_name)
+INSERT INTO tags (name)
 VALUES(
-    $1,
-    $2
+    $1
 )
 ON CONFLICT(
-    normalized_name
+    name
 )
-DO UPDATE SET normalized_name = EXCLUDED.normalized_name
+DO UPDATE SET name = EXCLUDED.name
 RETURNING *;
 
 -- name: CreateArticleTags :one
@@ -33,7 +32,7 @@ RETURNING *;
 SELECT * FROM articles WHERE slug = $1;
 
 -- name: GetArticleTagsByArticleID :many
-SELECT t.display_name FROM tags t
+SELECT t.name FROM tags t
 JOIN article_tags at ON t.id = at.tag_id
 JOIN articles a ON at.article_id = a.id
 WHERE a.id = $1;

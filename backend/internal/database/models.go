@@ -28,11 +28,10 @@ type ArticleTag struct {
 }
 
 type Tag struct {
-	ID             int64
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	DisplayName    string
-	NormalizedName string
+	ID        int64
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Name      string
 }
 
 type User struct {
