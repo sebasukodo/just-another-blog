@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/lib/pq"
+	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
 
 type returnError struct {
@@ -70,5 +71,29 @@ func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload inter
 	w.WriteHeader(code)
 	if _, err := w.Write(data); err != nil {
 		h.Logger.Error(fmt.Sprintf("error writing response: %v", err))
+	}
+}
+
+func buildArticleResponse(article database.Article, user database.User, tags []string) RespondArticle {
+	if tags == nil {
+		tags = []string{}
+	}
+	return RespondArticle{
+		Article: Article{
+			Slug:           article.Slug,
+			Title:          article.Title,
+			Description:    article.Description,
+			Body:           article.Body,
+			TagList:        tags,
+			CreatedAt:      article.CreatedAt,
+			UpdatedAt:      article.UpdatedAt,
+			Favorited:      false,
+			FavoritesCount: 0,
+			Author: Author{
+				Username: user.Username,
+				Bio:      nullStringToStringPointer(user.Bio),
+				Image:    nullStringToStringPointer(user.Image),
+			},
+		},
 	}
 }

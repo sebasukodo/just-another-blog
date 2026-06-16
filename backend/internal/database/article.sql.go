@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -101,4 +102,45 @@ func (q *Queries) GetArticleTagsByArticleID(ctx context.Context, id int64) ([]st
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateArticleBySlug = `-- name: UpdateArticleBySlug :one
+UPDATE articles
+SET title = COALESCE($1, title),
+    body = COALESCE($2, body),
+    description = COALESCE($3, description),
+    slug = COALESCE($4, slug),
+    updated_at = NOW()
+WHERE slug = $5
+RETURNING id, created_at, updated_at, author_id, slug, title, description, body
+`
+
+type UpdateArticleBySlugParams struct {
+	Title       sql.NullString
+	Body        sql.NullString
+	Description sql.NullString
+	NewSlug     sql.NullString
+	Slug        string
+}
+
+func (q *Queries) UpdateArticleBySlug(ctx context.Context, arg UpdateArticleBySlugParams) (Article, error) {
+	row := q.db.QueryRowContext(ctx, updateArticleBySlug,
+		arg.Title,
+		arg.Body,
+		arg.Description,
+		arg.NewSlug,
+		arg.Slug,
+	)
+	var i Article
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.AuthorID,
+		&i.Slug,
+		&i.Title,
+		&i.Description,
+		&i.Body,
+	)
+	return i, err
 }
