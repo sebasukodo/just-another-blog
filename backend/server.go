@@ -43,6 +43,9 @@ func newServer(h *handler.Handler, cancel context.CancelFunc) *server {
 
 	mux.HandleFunc("GET /api/articles/{slug}", h.GetArticle)
 	mux.HandleFunc("POST /api/articles", h.AuthMiddleware(h.CreateArticle))
+	mux.HandleFunc("PUT /api/articles/{slug}", h.AuthMiddleware(h.UpdateArticle))
+
+	mux.HandleFunc("GET /api/tags", h.GetTags)
 
 	return s
 }

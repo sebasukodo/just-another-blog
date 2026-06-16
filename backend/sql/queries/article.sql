@@ -9,31 +9,21 @@ VALUES(
 )
 RETURNING *;
 
--- name: CreateTags :one
-INSERT INTO tags (display_name, normalized_name)
-VALUES(
-    $1,
-    $2
-)
-ON CONFLICT(
-    normalized_name
-)
-DO UPDATE SET normalized_name = EXCLUDED.normalized_name
-RETURNING *;
-
--- name: CreateArticleTags :one
-INSERT INTO article_tags (article_id, tag_id)
-VALUES(
-    $1,
-    $2
-)
-RETURNING *;
-
 -- name: GetArticleBySlug :one
 SELECT * FROM articles WHERE slug = $1;
 
 -- name: GetArticleTagsByArticleID :many
-SELECT t.display_name FROM tags t
+SELECT t.name FROM tags t
 JOIN article_tags at ON t.id = at.tag_id
 JOIN articles a ON at.article_id = a.id
 WHERE a.id = $1;
+
+-- name: UpdateArticleBySlug :one
+UPDATE articles
+SET title = COALESCE(sqlc.narg('title'), title),
+    body = COALESCE(sqlc.narg('body'), body),
+    description = COALESCE(sqlc.narg('description'), description),
+    slug = COALESCE(sqlc.narg('new_slug'), slug),
+    updated_at = NOW()
+WHERE slug = sqlc.arg('slug')
+RETURNING *;

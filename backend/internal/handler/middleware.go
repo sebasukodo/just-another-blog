@@ -11,6 +11,7 @@ type contextKey string
 const (
 	contextKeyUserID contextKey = "userID"
 	contextKeyToken  contextKey = "token"
+	contextKeyUser   contextKey = "user"
 )
 
 func (h *Handler) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -27,7 +28,14 @@ func (h *Handler) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
+		user, err := h.DbQueries.GetUserByID(r.Context(), userID)
+		if err != nil {
+			h.RespondWithError(w, 401, "access denied", fmt.Sprintf("auth failed - user not found: %v", err))
+			return
+		}
+
 		ctx := context.WithValue(r.Context(), contextKeyUserID, userID)
+		ctx = context.WithValue(ctx, contextKeyUser, user)
 		ctx = context.WithValue(ctx, contextKeyToken, headerToken)
 		next(w, r.WithContext(ctx))
 	}

@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -53,58 +54,6 @@ func (q *Queries) CreateArticle(ctx context.Context, arg CreateArticleParams) (A
 	return i, err
 }
 
-const createArticleTags = `-- name: CreateArticleTags :one
-INSERT INTO article_tags (article_id, tag_id)
-VALUES(
-    $1,
-    $2
-)
-RETURNING article_id, tag_id
-`
-
-type CreateArticleTagsParams struct {
-	ArticleID int64
-	TagID     int64
-}
-
-func (q *Queries) CreateArticleTags(ctx context.Context, arg CreateArticleTagsParams) (ArticleTag, error) {
-	row := q.db.QueryRowContext(ctx, createArticleTags, arg.ArticleID, arg.TagID)
-	var i ArticleTag
-	err := row.Scan(&i.ArticleID, &i.TagID)
-	return i, err
-}
-
-const createTags = `-- name: CreateTags :one
-INSERT INTO tags (display_name, normalized_name)
-VALUES(
-    $1,
-    $2
-)
-ON CONFLICT(
-    normalized_name
-)
-DO UPDATE SET normalized_name = EXCLUDED.normalized_name
-RETURNING id, created_at, updated_at, display_name, normalized_name
-`
-
-type CreateTagsParams struct {
-	DisplayName    string
-	NormalizedName string
-}
-
-func (q *Queries) CreateTags(ctx context.Context, arg CreateTagsParams) (Tag, error) {
-	row := q.db.QueryRowContext(ctx, createTags, arg.DisplayName, arg.NormalizedName)
-	var i Tag
-	err := row.Scan(
-		&i.ID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DisplayName,
-		&i.NormalizedName,
-	)
-	return i, err
-}
-
 const getArticleBySlug = `-- name: GetArticleBySlug :one
 SELECT id, created_at, updated_at, author_id, slug, title, description, body FROM articles WHERE slug = $1
 `
@@ -126,7 +75,7 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, slug string) (Article, e
 }
 
 const getArticleTagsByArticleID = `-- name: GetArticleTagsByArticleID :many
-SELECT t.display_name FROM tags t
+SELECT t.name FROM tags t
 JOIN article_tags at ON t.id = at.tag_id
 JOIN articles a ON at.article_id = a.id
 WHERE a.id = $1
@@ -140,11 +89,11 @@ func (q *Queries) GetArticleTagsByArticleID(ctx context.Context, id int64) ([]st
 	defer rows.Close()
 	var items []string
 	for rows.Next() {
-		var display_name string
-		if err := rows.Scan(&display_name); err != nil {
+		var name string
+		if err := rows.Scan(&name); err != nil {
 			return nil, err
 		}
-		items = append(items, display_name)
+		items = append(items, name)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -153,4 +102,45 @@ func (q *Queries) GetArticleTagsByArticleID(ctx context.Context, id int64) ([]st
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateArticleBySlug = `-- name: UpdateArticleBySlug :one
+UPDATE articles
+SET title = COALESCE($1, title),
+    body = COALESCE($2, body),
+    description = COALESCE($3, description),
+    slug = COALESCE($4, slug),
+    updated_at = NOW()
+WHERE slug = $5
+RETURNING id, created_at, updated_at, author_id, slug, title, description, body
+`
+
+type UpdateArticleBySlugParams struct {
+	Title       sql.NullString
+	Body        sql.NullString
+	Description sql.NullString
+	NewSlug     sql.NullString
+	Slug        string
+}
+
+func (q *Queries) UpdateArticleBySlug(ctx context.Context, arg UpdateArticleBySlugParams) (Article, error) {
+	row := q.db.QueryRowContext(ctx, updateArticleBySlug,
+		arg.Title,
+		arg.Body,
+		arg.Description,
+		arg.NewSlug,
+		arg.Slug,
+	)
+	var i Article
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.AuthorID,
+		&i.Slug,
+		&i.Title,
+		&i.Description,
+		&i.Body,
+	)
+	return i, err
 }
