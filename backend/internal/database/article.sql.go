@@ -53,51 +53,6 @@ func (q *Queries) CreateArticle(ctx context.Context, arg CreateArticleParams) (A
 	return i, err
 }
 
-const createArticleTags = `-- name: CreateArticleTags :one
-INSERT INTO article_tags (article_id, tag_id)
-VALUES(
-    $1,
-    $2
-)
-RETURNING article_id, tag_id
-`
-
-type CreateArticleTagsParams struct {
-	ArticleID int64
-	TagID     int64
-}
-
-func (q *Queries) CreateArticleTags(ctx context.Context, arg CreateArticleTagsParams) (ArticleTag, error) {
-	row := q.db.QueryRowContext(ctx, createArticleTags, arg.ArticleID, arg.TagID)
-	var i ArticleTag
-	err := row.Scan(&i.ArticleID, &i.TagID)
-	return i, err
-}
-
-const createTags = `-- name: CreateTags :one
-INSERT INTO tags (name)
-VALUES(
-    $1
-)
-ON CONFLICT(
-    name
-)
-DO UPDATE SET name = EXCLUDED.name
-RETURNING id, created_at, updated_at, name
-`
-
-func (q *Queries) CreateTags(ctx context.Context, name string) (Tag, error) {
-	row := q.db.QueryRowContext(ctx, createTags, name)
-	var i Tag
-	err := row.Scan(
-		&i.ID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.Name,
-	)
-	return i, err
-}
-
 const getArticleBySlug = `-- name: GetArticleBySlug :one
 SELECT id, created_at, updated_at, author_id, slug, title, description, body FROM articles WHERE slug = $1
 `

@@ -170,23 +170,6 @@ func (h *Handler) GetArticle(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *Handler) saveTagsToDatabase(r *http.Request, articleID int64, tags []string) error {
-	for _, tag := range tags {
-		newTag, err := h.DbQueries.CreateTags(r.Context(), strings.ToLower(tag))
-		if err != nil {
-			return err
-		}
-		_, err = h.DbQueries.CreateArticleTags(r.Context(), database.CreateArticleTagsParams{
-			ArticleID: articleID,
-			TagID:     newTag.ID,
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func generateSlug(title string) (string, error) {
 	result := strings.ToLower(title)
 	result = strings.ReplaceAll(result, " ", "-")
