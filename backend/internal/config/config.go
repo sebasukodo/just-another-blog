@@ -9,7 +9,7 @@ type Env struct {
 	DBPassword  string
 	TokenSecret string
 	TokenIssuer string
-	LogFile     string
+	LogFilePath string
 }
 
 func Load() *Env {
@@ -20,6 +20,6 @@ func Load() *Env {
 		DBPassword:  os.Getenv("DB_PASSWORD"),
 		TokenSecret: os.Getenv("TOKEN_SECRET"),
 		TokenIssuer: os.Getenv("TOKEN_ISSUER"),
-		LogFile:     os.Getenv("LOG_FILE"),
+		LogFilePath: os.Getenv("LOG_FILE_PATH"),
 	}
 }

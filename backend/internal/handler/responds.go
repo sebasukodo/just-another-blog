@@ -44,17 +44,17 @@ func (h *Handler) RespondWithDatabaseError(w http.ResponseWriter, err error) {
 	if errors.As(err, &pqErr) {
 		switch pqErr.Code {
 		case "23505":
-			h.RespondWithError(w, 409, "Resource already exists", fmt.Sprintf("Database resource already exists: %v", err))
+			h.RespondWithError(w, 409, "resource already exists", fmt.Sprintf("database resource already exists: %v", err))
 			return
 		case "23502":
-			h.RespondWithError(w, 400, "Missing required field", fmt.Sprintf("Missing required field for database request: %v", err))
+			h.RespondWithError(w, 400, "missing required field", fmt.Sprintf("missing required field for database request: %v", err))
 			return
 		default:
-			h.RespondWithError(w, 500, "Internal Server Error", fmt.Sprintf("Database Error occured: %v", err))
+			h.RespondWithError(w, 500, "internal server error", fmt.Sprintf("database error occured: %v", err))
 			return
 		}
 	}
-	h.RespondWithError(w, 500, "Internal Server Error", fmt.Sprintf("Database Error occured but could not catch specific pqErr: %v", err))
+	h.RespondWithError(w, 500, "internal server error", fmt.Sprintf("database error occured but could not catch specific pqErr: %v", err))
 }
 
 func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
@@ -62,11 +62,13 @@ func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload inter
 
 	data, err := json.Marshal(payload)
 	if err != nil {
-		h.Logger.Error(fmt.Sprintf("Error marshalling JSON: %s", err))
+		h.Logger.Error(fmt.Sprintf("error marshalling JSON: %s", err))
 		w.WriteHeader(500)
 		return
 	}
 
 	w.WriteHeader(code)
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		h.Logger.Error(fmt.Sprintf("error writing response: %v", err))
+	}
 }

@@ -66,13 +66,13 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	userInfo := RegisterRequest{}
 
 	if err := decoder.Decode(&userInfo); err != nil {
-		h.RespondWithError(w, 400, "Invalid Request Body", err.Error())
+		h.RespondWithError(w, 400, "invalid request body", err.Error())
 		return
 	}
 
 	hashedPW, err := auth.HashPassword(userInfo.User.Password)
 	if err != nil {
-		h.RespondWithError(w, 500, "Could not hash password", fmt.Sprintf("Could not hash password: %v", err))
+		h.RespondWithError(w, 500, "could not hash password", fmt.Sprintf("could not hash password: %v", err))
 		return
 	}
 
@@ -88,7 +88,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	token, err := h.Auth.MakeJWT(user.ID, JWTExpiresIn)
 	if err != nil {
-		h.RespondWithError(w, 201, "User registered successfully, but could not create session", fmt.Sprintf("User %v registered, but could not create session: %v", user.ID, err))
+		h.RespondWithError(w, 201, "user registered successfully, but could not create session", fmt.Sprintf("User %v registered, but could not create session: %v", user.ID, err))
 		return
 	}
 
@@ -114,14 +114,14 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	userInfo := LoginRequest{}
 
 	if err := decoder.Decode(&userInfo); err != nil {
-		h.RespondWithError(w, 401, "Invalid Request Body", err.Error())
+		h.RespondWithError(w, 401, "invalid request body", err.Error())
 		return
 	}
 
 	user, err := h.DbQueries.GetUserByEmail(r.Context(), userInfo.User.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 401, "Access Denied", fmt.Sprintf("Login attempt failed, no user found for email %v", userInfo.User.Email))
+			h.RespondWithError(w, 401, "access denied", fmt.Sprintf("login attempt failed, no user found for email %v", userInfo.User.Email))
 		} else {
 			h.RespondWithDatabaseError(w, err)
 		}
@@ -130,18 +130,18 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	matching, err := auth.CheckPasswordHash(userInfo.User.Password, user.HashedPassword)
 	if err != nil {
-		h.RespondWithError(w, 401, "Access Denied", fmt.Sprintf("Login attempt failed for user %v - %v", user.ID, err))
+		h.RespondWithError(w, 401, "access denied", fmt.Sprintf("login attempt failed for user %v - %v", user.ID, err))
 		return
 	}
 
 	if !matching {
-		h.RespondWithError(w, 401, "Access Denied", fmt.Sprintf("Login attempt failed for user %v - wrong password", user.ID))
+		h.RespondWithError(w, 401, "access denied", fmt.Sprintf("login attempt failed for user %v - wrong password", user.ID))
 		return
 	}
 
 	token, err := h.Auth.MakeJWT(user.ID, JWTExpiresIn)
 	if err != nil {
-		h.RespondWithError(w, 500, "Access Denied", fmt.Sprintf("User %v logged in successfully, but could not create session: %v", user.ID, err))
+		h.RespondWithError(w, 500, "access denied", fmt.Sprintf("user %v logged in successfully, but could not create session: %v", user.ID, err))
 		return
 	}
 
@@ -166,7 +166,7 @@ func (h *Handler) CurrentUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.DbQueries.GetUserByID(r.Context(), userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 401, "Access Denied", fmt.Sprintf("CurrentUser request failed, no user found for id %v", userID))
+			h.RespondWithError(w, 401, "access denied", fmt.Sprintf("CurrentUser request failed, no user found for id %v", userID))
 		} else {
 			h.RespondWithDatabaseError(w, err)
 		}
@@ -196,7 +196,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	userInfo := UpdateUserRequest{}
 
 	if err := decoder.Decode(&userInfo); err != nil {
-		h.RespondWithError(w, 401, "Invalid Request Body", err.Error())
+		h.RespondWithError(w, 401, "invalid request body", err.Error())
 		return
 	}
 
@@ -212,7 +212,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if userInfo.User.Password != "" {
 		hashPW, err := auth.HashPassword(userInfo.User.Password)
 		if err != nil {
-			h.RespondWithError(w, 500, "Could not hash new password", err.Error())
+			h.RespondWithError(w, 500, "could not hash new password", err.Error())
 			return
 		}
 		updateInfo.HashedPassword = stringToNullString(hashPW)
@@ -241,7 +241,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.DbQueries.UpdateUserByID(r.Context(), updateInfo)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 401, "Access Denied", fmt.Sprintf("UpdateUser request failed, no user found for id %v", userID))
+			h.RespondWithError(w, 401, "access denied", fmt.Sprintf("UpdateUser request failed, no user found for id %v", userID))
 		} else {
 			h.RespondWithDatabaseError(w, err)
 		}

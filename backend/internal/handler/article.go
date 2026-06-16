@@ -67,7 +67,7 @@ func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 	articleInfo := ArticleCreateRequest{}
 
 	if err := decoder.Decode(&articleInfo); err != nil {
-		h.RespondWithError(w, 400, "Invalid Request Body", err.Error())
+		h.RespondWithError(w, 400, "invalid request body", err.Error())
 		return
 	}
 
@@ -90,7 +90,7 @@ func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.saveTagsToDatabase(r, article.ID, articleInfo.Article.TagList); err != nil {
-		h.RespondWithError(w, 201, "Article created successfully, but could not store tags", fmt.Sprintf("Article %v created, but could not add tags %v: %v", article.ID, articleInfo.Article.TagList, err))
+		h.RespondWithError(w, 201, "article created successfully, but could not store tags", fmt.Sprintf("Article %v created, but could not add tags %v: %v", article.ID, articleInfo.Article.TagList, err))
 		return
 	}
 

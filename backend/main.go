@@ -34,17 +34,20 @@ func main() {
 
 func run(ctx context.Context, cancel context.CancelFunc) int {
 
-	godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to load ENVIRONMENT Variables: %v\n", err)
+		return 1
+	}
 	cfg := config.Load()
 
-	logger, closeLogger, err := initializeLogger(cfg.LogFile)
+	logger, closeLogger, err := initializeLogger(cfg.LogFilePath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+		fmt.Fprintf(os.Stderr, "failed to initialize logger: %v\n", err)
 		return 1
 	}
 	defer func() {
 		if err := closeLogger(); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to close logger: %v\n", err)
+			fmt.Fprintf(os.Stderr, "failed to close logger: %v\n", err)
 		}
 	}()
 
@@ -53,17 +56,17 @@ func run(ctx context.Context, cancel context.CancelFunc) int {
 	logger.Debug("Connecting to database...")
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Could not connect to database at %v: %v", databaseURL, err))
+		logger.Error(fmt.Sprintf("could not connect to database at %v: %v", databaseURL, err))
 		return 1
 	}
 	logger.Debug("Connected to database.")
 
-	logger.Debug("Running migrations...")
+	logger.Debug("running migrations...")
 	if err := goose.Up(db, "./sql/schema"); err != nil {
-		logger.Error(fmt.Sprintf("Migration failed: %v", err))
+		logger.Error(fmt.Sprintf("migration failed: %v", err))
 		return 1
 	}
-	logger.Debug("Migrations completed successfully!")
+	logger.Debug("migrations completed successfully!")
 
 	dbQueries := database.New(db)
 	authService := auth.NewService(cfg.TokenSecret, cfg.TokenIssuer, logger)
@@ -80,12 +83,12 @@ func run(ctx context.Context, cancel context.CancelFunc) int {
 	defer cancel()
 
 	if err := s.shutdown(shutdownCtx); err != nil {
-		logger.Info(fmt.Sprintf("Failed to shutdown server: %v", err))
+		logger.Info(fmt.Sprintf("failed to shutdown server: %v", err))
 		return 1
 	}
 
 	if serverErr != nil {
-		logger.Info(fmt.Sprintf("Server error: %v", serverErr))
+		logger.Info(fmt.Sprintf("server error: %v", serverErr))
 		return 1
 	}
 
@@ -94,14 +97,25 @@ func run(ctx context.Context, cancel context.CancelFunc) int {
 
 type closeFunc func() error
 
-func initializeLogger(logFile string) (*slog.Logger, closeFunc, error) {
+func initializeLogger(logDir string) (*slog.Logger, closeFunc, error) {
 	handlers := []slog.Handler{
 		slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}),
 	}
 	closers := []closeFunc{}
 
-	if logFile != "" {
-		file, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
+	if logDir != "" {
+		date := time.Now().Format("2006-01-02")
+		logFileName := fmt.Sprintf("%v.log", date)
+
+		root, err := os.OpenRoot(logDir)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to open log directory: %w", err)
+		}
+		closers = append(closers, func() error {
+			return root.Close()
+		})
+
+		file, err := root.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to open log file: %w", err)
 		}

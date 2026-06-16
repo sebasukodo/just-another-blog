@@ -1,4 +1,4 @@
-package testing
+package auth
 
 import (
 	"log/slog"
@@ -6,12 +6,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sebasukodo/just-another-blog/backend/internal/auth"
 )
 
-func newTestService(t *testing.T, secret, issuer string) *auth.Service {
+func newTestService(t *testing.T, secret, issuer string) *Service {
 	t.Helper()
-	return &auth.Service{
+	return &Service{
 		TokenSecret: secret,
 		TokenIssuer: issuer,
 		Logger:      slog.Default(),

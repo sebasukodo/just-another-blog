@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/sebasukodo/just-another-blog/backend/internal/handler"
 )
@@ -26,8 +27,9 @@ func newServer(h *handler.Handler, cancel context.CancelFunc) *server {
 	}
 
 	s.httpServer = &http.Server{
-		Addr:    fmt.Sprintf(":%v", serverPort),
-		Handler: requestLogger(h.Logger)(mux),
+		Addr:              fmt.Sprintf(":%v", serverPort),
+		Handler:           requestLogger(h.Logger)(mux),
+		ReadHeaderTimeout: 15 * time.Second,
 	}
 
 	fileServerHandler := http.StripPrefix("/static/", http.FileServer(http.Dir(filepathRoot)))
@@ -50,7 +52,7 @@ func (s *server) start() error {
 	if err != nil {
 		return err
 	}
-	s.handler.Logger.Debug(fmt.Sprintf("Server is running on port %v", serverPort))
+	s.handler.Logger.Debug(fmt.Sprintf("server is running on port %v", serverPort))
 	if err := s.httpServer.Serve(listener); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
@@ -58,7 +60,7 @@ func (s *server) start() error {
 }
 
 func (s *server) shutdown(ctx context.Context) error {
-	s.handler.Logger.Debug("Server is shutting down...")
+	s.handler.Logger.Debug("server is shutting down...")
 	return s.httpServer.Shutdown(ctx)
 }
 
@@ -66,7 +68,7 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			next.ServeHTTP(w, r)
-			logger.Info(fmt.Sprintf("Served request: %s %s", r.Method, r.URL.Path))
+			logger.Info(fmt.Sprintf("served request: %s %s", r.Method, r.URL.Path))
 		})
 	}
 }

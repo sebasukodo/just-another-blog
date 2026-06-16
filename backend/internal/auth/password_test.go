@@ -1,9 +1,7 @@
-package testing
+package auth
 
 import (
 	"testing"
-
-	"github.com/sebasukodo/just-another-blog/backend/internal/auth"
 )
 
 func TestPassword(t *testing.T) {
@@ -46,7 +44,7 @@ func TestPassword(t *testing.T) {
 
 	for _, test := range testcase {
 		t.Run(test.name, func(t *testing.T) {
-			hashedPW, err := auth.HashPassword(test.password)
+			hashedPW, err := HashPassword(test.password)
 			if err != nil {
 				failCount++
 				t.Fatalf("hashing failed: %v", err)
@@ -57,7 +55,7 @@ func TestPassword(t *testing.T) {
 				hash = test.wrongHash
 			}
 
-			ok, err := auth.CheckPasswordHash(test.checkPassword, hash)
+			ok, err := CheckPasswordHash(test.checkPassword, hash)
 
 			if test.expectError {
 				if err == nil {
