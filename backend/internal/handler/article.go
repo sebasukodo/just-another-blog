@@ -222,6 +222,36 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (h *Handler) DeleteArticle(w http.ResponseWriter, r *http.Request) {
+
+	slug := r.PathValue("slug")
+
+	user, ok := r.Context().Value(contextKeyUser).(database.User)
+	if !ok {
+		h.RespondWithError(w, 401, "access denied", "missing user context")
+		return
+	}
+
+	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	if user.ID != article.AuthorID {
+		h.RespondWithError(w, 403, "access denied", fmt.Sprintf("DeleteArticle request failed, user %v is not author %v", user.ID.String(), article.AuthorID.String()))
+		return
+	}
+
+	if err := h.DbQueries.DeleteArticleById(r.Context(), article.ID); err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+
+}
+
 func (h *Handler) generateUniqueSlug(ctx context.Context, title string, currentID int64) (string, error) {
 	baseSlug, err := generateSlug(title)
 	if err != nil {

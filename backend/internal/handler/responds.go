@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,6 +42,12 @@ func (h *Handler) RespondWithError(w http.ResponseWriter, code int, errorMsg, lo
 }
 
 func (h *Handler) RespondWithDatabaseError(w http.ResponseWriter, err error) {
+
+	if errors.Is(err, sql.ErrNoRows) {
+		h.RespondWithError(w, 404, "resource does not exists", fmt.Sprintf("resource not found: %v", err))
+		return
+	}
+
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) {
 		switch pqErr.Code {
