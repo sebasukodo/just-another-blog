@@ -41,6 +41,7 @@ func newServer(h *handler.Handler, cancel context.CancelFunc) *server {
 	mux.HandleFunc("PUT /api/user", h.AuthMiddleware(h.UpdateUser))
 	mux.HandleFunc("DELETE /api/user", h.AuthMiddleware(h.DeleteUser))
 
+	mux.HandleFunc("GET /api/profiles/{username}", h.OptionalAuthMiddleware(h.GetProfile))
 	mux.HandleFunc("POST /api/profiles/{username}/follow", h.AuthMiddleware(h.FollowUser))
 	mux.HandleFunc("DELETE /api/profiles/{username}/follow", h.AuthMiddleware(h.UnfollowUser))
 

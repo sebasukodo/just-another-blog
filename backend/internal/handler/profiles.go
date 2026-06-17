@@ -18,6 +18,34 @@ type Profile struct {
 	Following bool   `json:"following"`
 }
 
+func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
+
+	username := r.PathValue("username")
+	user, err := h.DbQueries.GetUserByUsername(r.Context(), username)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	requestUser, authenticated := r.Context().Value(contextKeyUser).(database.User)
+	if !authenticated {
+		h.RespondWithJSON(w, 200, buildProfileResponse(user, false))
+		return
+	}
+
+	following, err := h.DbQueries.IsFollowing(r.Context(), database.IsFollowingParams{
+		FollowerID:  requestUser.ID,
+		FollowingID: user.ID,
+	})
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	h.RespondWithJSON(w, 200, buildProfileResponse(user, following))
+
+}
+
 func (h *Handler) FollowUser(w http.ResponseWriter, r *http.Request) {
 
 	username := r.PathValue("username")
