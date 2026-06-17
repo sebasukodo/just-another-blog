@@ -17,7 +17,7 @@ VALUES (
     $1,
     $2
 )
-RETURNING follower_id, following_id, created_at, updated_at
+RETURNING follower_id, following_id, created_at
 `
 
 type FollowUserParams struct {
@@ -28,12 +28,7 @@ type FollowUserParams struct {
 func (q *Queries) FollowUser(ctx context.Context, arg FollowUserParams) (UserFollow, error) {
 	row := q.db.QueryRowContext(ctx, followUser, arg.FollowerID, arg.FollowingID)
 	var i UserFollow
-	err := row.Scan(
-		&i.FollowerID,
-		&i.FollowingID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
+	err := row.Scan(&i.FollowerID, &i.FollowingID, &i.CreatedAt)
 	return i, err
 }
 
