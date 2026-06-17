@@ -81,7 +81,7 @@ func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload inter
 	}
 }
 
-func buildArticleResponse(article database.Article, user database.User, tags []string) RespondArticle {
+func buildArticleResponse(article database.Article, user database.User, tags []string, following bool) RespondArticle {
 	if tags == nil {
 		tags = []string{}
 	}
@@ -97,9 +97,10 @@ func buildArticleResponse(article database.Article, user database.User, tags []s
 			Favorited:      false,
 			FavoritesCount: 0,
 			Author: Author{
-				Username: user.Username,
-				Bio:      nullStringToStringPointer(user.Bio),
-				Image:    nullStringToStringPointer(user.Image),
+				Username:  user.Username,
+				Bio:       nullStringToStringPointer(user.Bio),
+				Image:     nullStringToStringPointer(user.Image),
+				Following: following,
 			},
 		},
 	}

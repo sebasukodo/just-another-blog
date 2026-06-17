@@ -53,9 +53,10 @@ type Article struct {
 }
 
 type Author struct {
-	Username string  `json:"username"`
-	Bio      *string `json:"bio"`
-	Image    *string `json:"image"`
+	Username  string  `json:"username"`
+	Bio       *string `json:"bio"`
+	Image     *string `json:"image"`
+	Following bool    `json:"following"`
 }
 
 func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
@@ -98,7 +99,7 @@ func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RespondWithJSON(w, 201, buildArticleResponse(article, user, articleInfo.Article.TagList))
+	h.RespondWithJSON(w, 201, buildArticleResponse(article, user, articleInfo.Article.TagList, false))
 
 }
 
@@ -132,7 +133,22 @@ func (h *Handler) GetArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RespondWithJSON(w, 200, buildArticleResponse(article, user, tags))
+	requestUser, authenticated := r.Context().Value(contextKeyUser).(database.User)
+	if !authenticated {
+		h.RespondWithJSON(w, 200, buildArticleResponse(article, user, tags, false))
+		return
+	}
+
+	following, err := h.DbQueries.IsFollowing(r.Context(), database.IsFollowingParams{
+		FollowerID:  requestUser.ID,
+		FollowingID: user.ID,
+	})
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	h.RespondWithJSON(w, 200, buildArticleResponse(article, user, tags, following))
 
 }
 
@@ -201,7 +217,7 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if noUpdate {
-		h.RespondWithJSON(w, 200, buildArticleResponse(article, user, tags))
+		h.RespondWithJSON(w, 200, buildArticleResponse(article, user, tags, false))
 		return
 	}
 
@@ -211,7 +227,7 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RespondWithJSON(w, 200, buildArticleResponse(updatedArticle, user, tags))
+	h.RespondWithJSON(w, 200, buildArticleResponse(updatedArticle, user, tags, false))
 
 }
 
