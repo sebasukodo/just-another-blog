@@ -104,3 +104,14 @@ func buildArticleResponse(article database.Article, user database.User, tags []s
 		},
 	}
 }
+
+func buildProfileResponse(user database.User, following bool) ProfileResponseBody {
+	return ProfileResponseBody{
+		Profile: Profile{
+			Username:  user.Username,
+			Bio:       user.Bio.String,
+			Image:     user.Image.String,
+			Following: following,
+		},
+	}
+}

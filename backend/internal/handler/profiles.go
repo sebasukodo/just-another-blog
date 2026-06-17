@@ -46,15 +46,32 @@ func (h *Handler) FollowUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respBody := ProfileResponseBody{
-		Profile: Profile{
-			Username:  toFollowUser.Username,
-			Bio:       toFollowUser.Bio.String,
-			Image:     toFollowUser.Image.String,
-			Following: true,
-		},
+	h.RespondWithJSON(w, 201, buildProfileResponse(toFollowUser, true))
+
+}
+
+func (h *Handler) UnfollowUser(w http.ResponseWriter, r *http.Request) {
+
+	username := r.PathValue("username")
+	toFollowUser, err := h.DbQueries.GetUserByUsername(r.Context(), username)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
 	}
 
-	h.RespondWithJSON(w, 201, respBody)
+	user, ok := r.Context().Value(contextKeyUser).(database.User)
+	if !ok {
+		h.RespondWithError(w, 401, "access denied", "missing user context")
+		return
+	}
 
+	if _, err := h.DbQueries.UnfollowUser(r.Context(), database.UnfollowUserParams{
+		FollowerID:  user.ID,
+		FollowingID: toFollowUser.ID,
+	}); err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	h.RespondWithJSON(w, 200, buildProfileResponse(toFollowUser, false))
 }

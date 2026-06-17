@@ -133,9 +133,10 @@ func (q *Queries) IsFollowing(ctx context.Context, arg IsFollowingParams) (bool,
 	return exists, err
 }
 
-const unfollowUser = `-- name: UnfollowUser :exec
+const unfollowUser = `-- name: UnfollowUser :one
 DELETE FROM user_follows
 WHERE follower_id = $1 AND following_id = $2
+RETURNING follower_id
 `
 
 type UnfollowUserParams struct {
@@ -143,7 +144,9 @@ type UnfollowUserParams struct {
 	FollowingID uuid.UUID
 }
 
-func (q *Queries) UnfollowUser(ctx context.Context, arg UnfollowUserParams) error {
-	_, err := q.db.ExecContext(ctx, unfollowUser, arg.FollowerID, arg.FollowingID)
-	return err
+func (q *Queries) UnfollowUser(ctx context.Context, arg UnfollowUserParams) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, unfollowUser, arg.FollowerID, arg.FollowingID)
+	var follower_id uuid.UUID
+	err := row.Scan(&follower_id)
+	return follower_id, err
 }

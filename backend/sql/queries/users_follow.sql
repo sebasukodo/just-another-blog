@@ -6,9 +6,10 @@ VALUES (
 )
 RETURNING *;
 
--- name: UnfollowUser :exec
+-- name: UnfollowUser :one
 DELETE FROM user_follows
-WHERE follower_id = $1 AND following_id = $2;
+WHERE follower_id = $1 AND following_id = $2
+RETURNING follower_id;
 
 -- name: IsFollowing :one
 SELECT EXISTS (
