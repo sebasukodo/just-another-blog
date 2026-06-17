@@ -40,3 +40,30 @@ func (h *Handler) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		next(w, r.WithContext(ctx))
 	}
 }
+
+func (h *Handler) OptionalAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		headerToken, err := h.Auth.GetToken(r.Header)
+		if err != nil {
+			next(w, r)
+			return
+		}
+
+		userID, err := h.Auth.ValidateJWT(headerToken)
+		if err != nil {
+			next(w, r)
+			return
+		}
+
+		user, err := h.DbQueries.GetUserByID(r.Context(), userID)
+		if err != nil {
+			next(w, r)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), contextKeyUserID, userID)
+		ctx = context.WithValue(ctx, contextKeyUser, user)
+		ctx = context.WithValue(ctx, contextKeyToken, headerToken)
+		next(w, r.WithContext(ctx))
+	}
+}

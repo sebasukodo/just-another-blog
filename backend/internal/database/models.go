@@ -44,3 +44,9 @@ type User struct {
 	Bio            sql.NullString
 	Image          sql.NullString
 }
+
+type UserFollow struct {
+	FollowerID  uuid.UUID
+	FollowingID uuid.UUID
+	CreatedAt   time.Time
+}
