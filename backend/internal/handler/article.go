@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
 
@@ -61,15 +60,9 @@ type Author struct {
 
 func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 
-	userID := r.Context().Value(contextKeyUserID).(uuid.UUID)
-
-	user, err := h.DbQueries.GetUserByID(r.Context(), userID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 401, "access denied", fmt.Sprintf("CreateArticle request failed, no user found for id %v", userID.String()))
-		} else {
-			h.RespondWithDatabaseError(w, err)
-		}
+	user, ok := r.Context().Value(contextKeyUser).(database.User)
+	if !ok {
+		h.RespondWithError(w, 401, "access denied", "missing user context")
 		return
 	}
 
@@ -89,7 +82,7 @@ func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	article, err := h.DbQueries.CreateArticle(r.Context(), database.CreateArticleParams{
-		AuthorID:    userID,
+		AuthorID:    user.ID,
 		Slug:        slug,
 		Title:       articleInfo.Article.Title,
 		Description: articleInfo.Article.Description,
@@ -156,15 +149,15 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
-	if err != nil {
-		h.RespondWithDatabaseError(w, err)
-		return
-	}
-
 	user, ok := r.Context().Value(contextKeyUser).(database.User)
 	if !ok {
 		h.RespondWithError(w, 401, "access denied", "missing user context")
+		return
+	}
+
+	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
 		return
 	}
 
@@ -219,6 +212,36 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.RespondWithJSON(w, 200, buildArticleResponse(updatedArticle, user, tags))
+
+}
+
+func (h *Handler) DeleteArticle(w http.ResponseWriter, r *http.Request) {
+
+	slug := r.PathValue("slug")
+
+	user, ok := r.Context().Value(contextKeyUser).(database.User)
+	if !ok {
+		h.RespondWithError(w, 401, "access denied", "missing user context")
+		return
+	}
+
+	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	if user.ID != article.AuthorID {
+		h.RespondWithError(w, 403, "access denied", fmt.Sprintf("DeleteArticle request failed, user %v is not author %v", user.ID.String(), article.AuthorID.String()))
+		return
+	}
+
+	if err := h.DbQueries.DeleteArticleById(r.Context(), article.ID); err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 
 }
 

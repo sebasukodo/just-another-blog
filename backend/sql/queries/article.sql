@@ -27,3 +27,7 @@ SET title = COALESCE(sqlc.narg('title'), title),
     updated_at = NOW()
 WHERE slug = sqlc.arg('slug')
 RETURNING *;
+
+-- name: DeleteArticleById :exec
+DELETE FROM articles
+WHERE id = $1;
