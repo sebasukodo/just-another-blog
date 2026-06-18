@@ -32,16 +32,16 @@ func (q *Queries) FollowUser(ctx context.Context, arg FollowUserParams) (UserFol
 	return i, err
 }
 
-const getFollowersOfUser = `-- name: GetFollowersOfUser :many
+const getAllUsersAUserIsFollowing = `-- name: GetAllUsersAUserIsFollowing :many
 SELECT u.id, u.created_at, u.updated_at, u.username, u.email, u.hashed_password, u.bio, u.image
 FROM users u
 JOIN user_follows as uf
-ON u.id = uf.follower_id
-WHERE uf.following_id = $1
+ON u.id = uf.following_id
+WHERE uf.follower_id = $1
 `
 
-func (q *Queries) GetFollowersOfUser(ctx context.Context, followingID uuid.UUID) ([]User, error) {
-	rows, err := q.db.QueryContext(ctx, getFollowersOfUser, followingID)
+func (q *Queries) GetAllUsersAUserIsFollowing(ctx context.Context, followerID uuid.UUID) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getAllUsersAUserIsFollowing, followerID)
 	if err != nil {
 		return nil, err
 	}
@@ -72,16 +72,16 @@ func (q *Queries) GetFollowersOfUser(ctx context.Context, followingID uuid.UUID)
 	return items, nil
 }
 
-const getUsersFollowedByUser = `-- name: GetUsersFollowedByUser :many
+const getFollowersOfAUser = `-- name: GetFollowersOfAUser :many
 SELECT u.id, u.created_at, u.updated_at, u.username, u.email, u.hashed_password, u.bio, u.image
 FROM users u
 JOIN user_follows as uf
-ON u.id = uf.following_id
-WHERE uf.follower_id = $1
+ON u.id = uf.follower_id
+WHERE uf.following_id = $1
 `
 
-func (q *Queries) GetUsersFollowedByUser(ctx context.Context, followerID uuid.UUID) ([]User, error) {
-	rows, err := q.db.QueryContext(ctx, getUsersFollowedByUser, followerID)
+func (q *Queries) GetFollowersOfAUser(ctx context.Context, followingID uuid.UUID) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getFollowersOfAUser, followingID)
 	if err != nil {
 		return nil, err
 	}

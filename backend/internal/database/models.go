@@ -22,6 +22,15 @@ type Article struct {
 	Body        string
 }
 
+type ArticleComment struct {
+	ID        int64
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	ArticleID int64
+	AuthorID  uuid.UUID
+	Body      string
+}
+
 type ArticleTag struct {
 	ArticleID int64
 	TagID     int64

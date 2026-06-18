@@ -12,6 +12,9 @@ RETURNING *;
 -- name: GetArticleBySlug :one
 SELECT * FROM articles WHERE slug = $1;
 
+-- name: GetArticleIDBySlug :one
+SELECT id FROM articles WHERE slug = $1;
+
 -- name: GetArticleTagsByArticleID :many
 SELECT t.name FROM tags t
 JOIN article_tags at ON t.id = at.tag_id

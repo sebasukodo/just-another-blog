@@ -19,14 +19,14 @@ SELECT EXISTS (
       AND following_id = $2
 );
 
--- name: GetFollowersOfUser :many
+-- name: GetFollowersOfAUser :many
 SELECT u.*
 FROM users u
 JOIN user_follows as uf
 ON u.id = uf.follower_id
 WHERE uf.following_id = $1;
 
--- name: GetUsersFollowedByUser :many
+-- name: GetAllUsersAUserIsFollowing :many
 SELECT u.*
 FROM users u
 JOIN user_follows as uf
