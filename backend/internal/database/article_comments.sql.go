@@ -7,6 +7,8 @@ package database
 
 import (
 	"context"
+	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -42,26 +44,55 @@ func (q *Queries) AddCommentToArticle(ctx context.Context, arg AddCommentToArtic
 }
 
 const getCommentsFromArticle = `-- name: GetCommentsFromArticle :many
-SELECT id, created_at, updated_at, article_id, author_id, body FROM article_comments
-WHERE article_id = $1
+SELECT c.id, c.article_id, c.body, c.author_id, c.created_at, c.updated_at, a.username, a.bio, a.image, EXISTS (
+  SELECT 1
+  FROM user_follows uf
+  WHERE uf.follower_id = $2 AND uf.following_id = c.author_id
+) AS author_is_followed
+FROM article_comments c
+JOIN users a
+ON a.id = c.author_id
+WHERE c.article_id = $1
 `
 
-func (q *Queries) GetCommentsFromArticle(ctx context.Context, articleID int64) ([]ArticleComment, error) {
-	rows, err := q.db.QueryContext(ctx, getCommentsFromArticle, articleID)
+type GetCommentsFromArticleParams struct {
+	ArticleID  int64
+	FollowerID uuid.UUID
+}
+
+type GetCommentsFromArticleRow struct {
+	ID               int64
+	ArticleID        int64
+	Body             string
+	AuthorID         uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	Username         string
+	Bio              sql.NullString
+	Image            sql.NullString
+	AuthorIsFollowed bool
+}
+
+func (q *Queries) GetCommentsFromArticle(ctx context.Context, arg GetCommentsFromArticleParams) ([]GetCommentsFromArticleRow, error) {
+	rows, err := q.db.QueryContext(ctx, getCommentsFromArticle, arg.ArticleID, arg.FollowerID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ArticleComment
+	var items []GetCommentsFromArticleRow
 	for rows.Next() {
-		var i ArticleComment
+		var i GetCommentsFromArticleRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.ArticleID,
+			&i.Body,
+			&i.AuthorID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.ArticleID,
-			&i.AuthorID,
-			&i.Body,
+			&i.Username,
+			&i.Bio,
+			&i.Image,
+			&i.AuthorIsFollowed,
 		); err != nil {
 			return nil, err
 		}

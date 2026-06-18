@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
@@ -115,4 +116,41 @@ func buildProfileResponse(user database.User, following bool) ProfileResponseBod
 			Following: following,
 		},
 	}
+}
+
+func (h *Handler) buildCommentsResponse(r *http.Request, article database.Article, requestedUserID uuid.UUID, isAuthenticated bool) (RespondArticleComments, error) {
+
+	if !isAuthenticated {
+		requestedUserID = uuid.Nil
+	}
+
+	allComments, err := h.DbQueries.GetCommentsFromArticle(r.Context(), database.GetCommentsFromArticleParams{
+		ArticleID:  article.ID,
+		FollowerID: requestedUserID,
+	})
+	if err != nil {
+		return RespondArticleComments{}, err
+	}
+
+	response := []CommentResponse{}
+	for _, comment := range allComments {
+		response = append(response, CommentResponse{
+			Id:        comment.ID,
+			CreatedAt: comment.CreatedAt,
+			UpdatedAt: comment.UpdatedAt,
+			Body:      comment.Body,
+			Author: ProfileResponseBody{
+				Profile: Profile{
+					Username:  comment.Username,
+					Bio:       comment.Bio.String,
+					Image:     comment.Image.String,
+					Following: comment.AuthorIsFollowed,
+				},
+			},
+		})
+	}
+
+	return RespondArticleComments{
+		Comments: response,
+	}, nil
 }

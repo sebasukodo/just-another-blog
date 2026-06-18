@@ -28,6 +28,10 @@ type CommentResponse struct {
 	Author    ProfileResponseBody `json:"author"`
 }
 
+type RespondArticleComments struct {
+	Comments []CommentResponse `json:"comments"`
+}
+
 func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 
 	slug := r.PathValue("slug")
@@ -89,6 +93,22 @@ func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
+
+	slug := r.PathValue("slug")
+
+	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	requestUser, authenticated := r.Context().Value(contextKeyUser).(database.User)
+	response, err := h.buildCommentsResponse(r, article, requestUser.ID, authenticated)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+	h.RespondWithJSON(w, 200, response)
 
 }
 
