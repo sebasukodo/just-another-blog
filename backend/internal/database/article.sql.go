@@ -84,6 +84,17 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, slug string) (Article, e
 	return i, err
 }
 
+const getArticleIDBySlug = `-- name: GetArticleIDBySlug :one
+SELECT id FROM articles WHERE slug = $1
+`
+
+func (q *Queries) GetArticleIDBySlug(ctx context.Context, slug string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getArticleIDBySlug, slug)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getArticleTagsByArticleID = `-- name: GetArticleTagsByArticleID :many
 SELECT t.name FROM tags t
 JOIN article_tags at ON t.id = at.tag_id
