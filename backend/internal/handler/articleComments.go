@@ -66,6 +66,10 @@ func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 		AuthorID:  user.ID,
 		Body:      commentInfo.Comment.Body,
 	})
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
 
 	articleAuthor, err := h.DbQueries.GetUserByID(r.Context(), article.AuthorID)
 	if err != nil {
