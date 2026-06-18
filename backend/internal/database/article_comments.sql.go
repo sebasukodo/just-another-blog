@@ -43,6 +43,31 @@ func (q *Queries) AddCommentToArticle(ctx context.Context, arg AddCommentToArtic
 	return i, err
 }
 
+const deleteCommentFromArticle = `-- name: DeleteCommentFromArticle :one
+DELETE FROM article_comments
+WHERE id = $1 AND author_id = $2
+RETURNING id, created_at, updated_at, article_id, author_id, body
+`
+
+type DeleteCommentFromArticleParams struct {
+	ID       int64
+	AuthorID uuid.UUID
+}
+
+func (q *Queries) DeleteCommentFromArticle(ctx context.Context, arg DeleteCommentFromArticleParams) (ArticleComment, error) {
+	row := q.db.QueryRowContext(ctx, deleteCommentFromArticle, arg.ID, arg.AuthorID)
+	var i ArticleComment
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ArticleID,
+		&i.AuthorID,
+		&i.Body,
+	)
+	return i, err
+}
+
 const getCommentsFromArticle = `-- name: GetCommentsFromArticle :many
 SELECT c.id, c.article_id, c.body, c.author_id, c.created_at, c.updated_at, a.username, a.bio, a.image, EXISTS (
   SELECT 1

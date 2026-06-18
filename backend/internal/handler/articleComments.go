@@ -1,8 +1,12 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
@@ -113,5 +117,33 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
+
+	commentIDString := r.PathValue("commentID")
+	commentID, err := strconv.ParseInt(commentIDString, 10, 64)
+	if err != nil {
+		h.RespondWithError(w, 400, "bad request", fmt.Sprintf("could not convert comment ID to int64: %v - %v", commentIDString, err))
+		return
+	}
+
+	user, ok := r.Context().Value(contextKeyUser).(database.User)
+	if !ok {
+		h.RespondWithError(w, 401, "access denied", "missing user context")
+		return
+	}
+
+	_, err = h.DbQueries.DeleteCommentFromArticle(r.Context(), database.DeleteCommentFromArticleParams{
+		ID:       commentID,
+		AuthorID: user.ID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			h.RespondWithError(w, 403, "forbidden", "not author or not found")
+		} else {
+			h.RespondWithDatabaseError(w, err)
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 
 }

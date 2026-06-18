@@ -17,3 +17,8 @@ FROM article_comments c
 JOIN users a
 ON a.id = c.author_id
 WHERE c.article_id = $1;
+
+-- name: DeleteCommentFromArticle :one
+DELETE FROM article_comments
+WHERE id = $1 AND author_id = $2
+RETURNING *;
