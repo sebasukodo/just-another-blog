@@ -88,7 +88,7 @@ func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 			CreatedAt: comment.CreatedAt,
 			UpdatedAt: comment.UpdatedAt,
 			Body:      comment.Body,
-			Author:    buildProfileResponse(articleAuthor, following),
+			Author:    buildProfileResponse(user, following),
 		},
 	}
 
