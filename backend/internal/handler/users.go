@@ -70,6 +70,16 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if userInfo.User.Email == "" || userInfo.User.Username == "" {
+		h.RespondWithError(w, 400, "empty email or username", "user register attempt failed: no email or username")
+		return
+	}
+
+	if userInfo.User.Password == "" {
+		h.RespondWithError(w, 400, "empty password", "user register attempt failed: no password")
+		return
+	}
+
 	hashedPW, err := auth.HashPassword(userInfo.User.Password)
 	if err != nil {
 		h.RespondWithError(w, 500, "could not hash password", fmt.Sprintf("could not hash password: %v", err))
@@ -115,6 +125,11 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := decoder.Decode(&userInfo); err != nil {
 		h.RespondWithError(w, 401, "invalid request body", err.Error())
+		return
+	}
+
+	if userInfo.User.Email == "" {
+		h.RespondWithError(w, 400, "empty email", "user login attempt failed: no email")
 		return
 	}
 
