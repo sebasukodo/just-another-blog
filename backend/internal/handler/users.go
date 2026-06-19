@@ -13,7 +13,7 @@ import (
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
 
-type RegisterRequest struct {
+type RegisterUserRequest struct {
 	User RegisterUser `json:"user"`
 }
 
@@ -23,7 +23,7 @@ type RegisterUser struct {
 	Password string `json:"password"`
 }
 
-type LoginRequest struct {
+type LoginUserRequest struct {
 	User LoginUser `json:"user"`
 }
 
@@ -44,11 +44,11 @@ type UpdateUser struct {
 	Image    *string `json:"image"`
 }
 
-type UserRespond struct {
-	User RespondUser `json:"user"`
+type RespondUser struct {
+	User User `json:"user"`
 }
 
-type RespondUser struct {
+type User struct {
 	Username string  `json:"username"`
 	Email    string  `json:"email"`
 	Token    string  `json:"token"`
@@ -63,7 +63,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	limitedRequest := http.MaxBytesReader(w, r.Body, 2048)
 	decoder := json.NewDecoder(limitedRequest)
 
-	userInfo := RegisterRequest{}
+	userInfo := RegisterUserRequest{}
 
 	if err := decoder.Decode(&userInfo); err != nil {
 		h.RespondWithError(w, 400, "invalid request body", err.Error())
@@ -102,8 +102,8 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respBody := UserRespond{
-		User: RespondUser{
+	respBody := RespondUser{
+		User: User{
 			Username: user.Username,
 			Email:    user.Email,
 			Token:    token,
@@ -121,7 +121,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	limitedRequest := http.MaxBytesReader(w, r.Body, 2048)
 	decoder := json.NewDecoder(limitedRequest)
 
-	userInfo := LoginRequest{}
+	userInfo := LoginUserRequest{}
 
 	if err := decoder.Decode(&userInfo); err != nil {
 		h.RespondWithError(w, 401, "invalid request body", err.Error())
@@ -160,8 +160,8 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respBody := UserRespond{
-		User: RespondUser{
+	respBody := RespondUser{
+		User: User{
 			Username: user.Username,
 			Email:    user.Email,
 			Token:    token,
@@ -188,8 +188,8 @@ func (h *Handler) CurrentUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respBody := UserRespond{
-		User: RespondUser{
+	respBody := RespondUser{
+		User: User{
 			Username: user.Username,
 			Email:    user.Email,
 			Token:    token,
@@ -263,8 +263,8 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respBody := UserRespond{
-		User: RespondUser{
+	respBody := RespondUser{
+		User: User{
 			Username: user.Username,
 			Email:    user.Email,
 			Token:    token,

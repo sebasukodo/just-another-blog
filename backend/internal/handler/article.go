@@ -14,25 +14,25 @@ import (
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
 
-type ArticleCreateRequest struct {
-	Article ArticleCreate `json:"article"`
+type CreateArticleRequest struct {
+	Article CreateArticle `json:"article"`
 }
 
-type ArticleUpdateRequestBody struct {
-	Article ArticleUpdateRequest `json:"article"`
-}
-
-type ArticleUpdateRequest struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Body        string `json:"body"`
-}
-
-type ArticleCreate struct {
+type CreateArticle struct {
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
 	Body        string   `json:"body"`
 	TagList     []string `json:"tagList"`
+}
+
+type UpdateArticleRequest struct {
+	Article UpdateArticle `json:"article"`
+}
+
+type UpdateArticle struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Body        string `json:"body"`
 }
 
 type RespondArticle struct {
@@ -69,7 +69,7 @@ func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
 
-	articleInfo := ArticleCreateRequest{}
+	articleInfo := CreateArticleRequest{}
 
 	if err := decoder.Decode(&articleInfo); err != nil {
 		h.RespondWithError(w, 400, "invalid request body", err.Error())
@@ -158,7 +158,7 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
 
-	articleInfo := ArticleUpdateRequestBody{}
+	articleInfo := UpdateArticleRequest{}
 
 	if err := decoder.Decode(&articleInfo); err != nil {
 		h.RespondWithError(w, 401, "invalid request body", err.Error())

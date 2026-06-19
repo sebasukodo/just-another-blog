@@ -106,8 +106,8 @@ func buildArticleResponse(article database.Article, user database.User, tags []s
 	}
 }
 
-func buildProfileResponse(user database.User, following bool) ProfileResponseBody {
-	return ProfileResponseBody{
+func buildProfileResponse(user database.User, following bool) RespondProfile {
+	return RespondProfile{
 		Profile: Profile{
 			Username:  user.Username,
 			Bio:       user.Bio.String,
@@ -117,15 +117,15 @@ func buildProfileResponse(user database.User, following bool) ProfileResponseBod
 	}
 }
 
-func buildCommentsResponse(allComments []database.GetCommentsFromArticleRow) RespondArticleComments {
-	response := []CommentResponse{}
+func buildCommentsResponse(allComments []database.GetCommentsFromArticleRow) RespondComments {
+	response := []Comment{}
 	for _, comment := range allComments {
-		response = append(response, CommentResponse{
+		response = append(response, Comment{
 			Id:        comment.ID,
 			CreatedAt: comment.CreatedAt,
 			UpdatedAt: comment.UpdatedAt,
 			Body:      comment.Body,
-			Author: ProfileResponseBody{
+			Author: RespondProfile{
 				Profile: Profile{
 					Username:  comment.Username,
 					Bio:       comment.Bio.String,
@@ -135,5 +135,5 @@ func buildCommentsResponse(allComments []database.GetCommentsFromArticleRow) Res
 			},
 		})
 	}
-	return RespondArticleComments{Comments: response}
+	return RespondComments{Comments: response}
 }

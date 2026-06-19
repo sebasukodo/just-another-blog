@@ -13,28 +13,28 @@ import (
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
 
-type CommentRequestBody struct {
-	Comment CommentRequest `json:"comment"`
+type AddCommentRequest struct {
+	Comment AddComment `json:"comment"`
 }
 
-type CommentRequest struct {
+type AddComment struct {
 	Body string `json:"body"`
 }
 
-type CommentResponseBody struct {
-	Comment CommentResponse `json:"comment"`
+type RespondComment struct {
+	Comment Comment `json:"comment"`
 }
 
-type CommentResponse struct {
-	Id        int64               `json:"id"`
-	CreatedAt time.Time           `json:"createdAt"`
-	UpdatedAt time.Time           `json:"updatedAt"`
-	Body      string              `json:"body"`
-	Author    ProfileResponseBody `json:"author"`
+type RespondComments struct {
+	Comments []Comment `json:"comments"`
 }
 
-type RespondArticleComments struct {
-	Comments []CommentResponse `json:"comments"`
+type Comment struct {
+	Id        int64          `json:"id"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	Body      string         `json:"body"`
+	Author    RespondProfile `json:"author"`
 }
 
 func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +49,7 @@ func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
 
-	commentInfo := CommentRequestBody{}
+	commentInfo := AddCommentRequest{}
 
 	if err := decoder.Decode(&commentInfo); err != nil {
 		h.RespondWithError(w, 400, "invalid request body", err.Error())
@@ -87,8 +87,8 @@ func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseBody := CommentResponseBody{
-		Comment: CommentResponse{
+	responseBody := RespondComment{
+		Comment: Comment{
 			Id:        comment.ID,
 			CreatedAt: comment.CreatedAt,
 			UpdatedAt: comment.UpdatedAt,
