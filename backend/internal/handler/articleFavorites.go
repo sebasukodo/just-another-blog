@@ -29,6 +29,16 @@ func (h *Handler) FavoriteArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tags, err := h.DbQueries.GetArticleTagsByArticleID(r.Context(), article.ID)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	if tags == nil {
+		tags = []string{}
+	}
+
 	_, err = h.DbQueries.FavoriteArticle(r.Context(), database.FavoriteArticleParams{
 		ArticleID: article.ID,
 		UserID:    user.ID,
@@ -49,7 +59,7 @@ func (h *Handler) FavoriteArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RespondWithJSON(w, 201, buildArticleResponse(article, following, true))
+	h.RespondWithJSON(w, 201, buildArticleResponse(article, tags, following, true))
 
 }
 
@@ -73,6 +83,16 @@ func (h *Handler) UnfavoriteArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tags, err := h.DbQueries.GetArticleTagsByArticleID(r.Context(), article.ID)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	if tags == nil {
+		tags = []string{}
+	}
+
 	if err = h.DbQueries.UnfavoriteArticle(r.Context(), database.UnfavoriteArticleParams{
 		ArticleID: article.ID,
 		UserID:    user.ID,
@@ -92,6 +112,6 @@ func (h *Handler) UnfavoriteArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RespondWithJSON(w, 200, buildArticleResponse(article, following, false))
+	h.RespondWithJSON(w, 200, buildArticleResponse(article, tags, following, false))
 
 }

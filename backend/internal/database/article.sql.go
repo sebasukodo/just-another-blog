@@ -72,7 +72,7 @@ SELECT
     u.username,
     u.bio,
     u.image,
-    array_agg(t.name ORDER BY t.name)::text[] AS tags,
+    array_agg(t.name ORDER BY t.name) FILTER (WHERE t.name IS NOT NULL)::text[] AS tags,
     (SELECT COUNT(*)
      FROM article_favorites af
      WHERE af.article_id = a.id

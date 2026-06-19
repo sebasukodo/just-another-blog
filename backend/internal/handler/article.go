@@ -139,16 +139,6 @@ func (h *Handler) GetArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tags, err := h.DbQueries.GetArticleTagsByArticleID(r.Context(), article.ID)
-	if err != nil {
-		h.RespondWithDatabaseError(w, err)
-		return
-	}
-
-	if tags == nil {
-		tags = []string{}
-	}
-
 	requestUser, authenticated := r.Context().Value(contextKeyUser).(database.User)
 	if !authenticated {
 		h.RespondWithJSON(w, 200, buildArticleResponse(article, false, false))
@@ -201,16 +191,6 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 	if user.ID != article.AuthorID {
 		h.RespondWithError(w, 403, "access denied", fmt.Sprintf("UpdateArticle request failed, user %v is not author %v", user.ID.String(), article.AuthorID.String()))
 		return
-	}
-
-	tags, err := h.DbQueries.GetArticleTagsByArticleID(r.Context(), article.ID)
-	if err != nil {
-		h.RespondWithDatabaseError(w, err)
-		return
-	}
-
-	if tags == nil {
-		tags = []string{}
 	}
 
 	updateInfo := database.UpdateArticleBySlugParams{
