@@ -49,6 +49,10 @@ func ScanListArticles(rows *sql.Rows) ([]ListArticle, error) {
 		articles = append(articles, la)
 	}
 
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
