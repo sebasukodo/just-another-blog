@@ -10,7 +10,24 @@ VALUES(
 RETURNING *;
 
 -- name: GetArticleBySlug :one
-SELECT * FROM articles WHERE slug = $1;
+SELECT
+    a.*,
+    author.username,
+    author.bio,
+    author.image,
+    array_agg(t.name ORDER BY t.name)::text[] AS tags,
+    (SELECT COUNT(*)
+     FROM article_favorites af
+     WHERE af.article_id = a.id
+    ) AS favorite_count
+FROM articles a
+JOIN users author ON author.id = a.author_id
+LEFT JOIN article_tags at
+ON at.article_id = a.id
+LEFT JOIN tags t
+ON t.id = at.tag_id
+WHERE a.slug = $1
+GROUP BY a.id, author.username, author.bio, author.image;
 
 -- name: GetArticleIDBySlug :one
 SELECT id FROM articles WHERE slug = $1;

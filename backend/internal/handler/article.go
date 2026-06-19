@@ -121,7 +121,7 @@ func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RespondWithJSON(w, 201, buildArticleResponse(article, user, articleInfo.Article.TagList, false))
+	h.RespondWithJSON(w, 201, buildArticleResponse(addFavCountToDbArticle(article, 0), false, false))
 
 }
 
@@ -149,28 +149,27 @@ func (h *Handler) GetArticle(w http.ResponseWriter, r *http.Request) {
 		tags = []string{}
 	}
 
-	user, err := h.DbQueries.GetUserByID(r.Context(), article.AuthorID)
-	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+	requestUser, authenticated := r.Context().Value(contextKeyUser).(database.User)
+	if !authenticated {
+		h.RespondWithJSON(w, 200, buildArticleResponse(article, false, false))
 		return
 	}
 
-	requestUser, authenticated := r.Context().Value(contextKeyUser).(database.User)
-	if !authenticated {
-		h.RespondWithJSON(w, 200, buildArticleResponse(article, user, tags, false))
-		return
-	}
+	isFavorite, err := h.DbQueries.GetArticleIsFavorite(r.Context(), database.GetArticleIsFavoriteParams{
+		ArticleID: article.ID,
+		UserID:    requestUser.ID,
+	})
 
 	following, err := h.DbQueries.IsFollowing(r.Context(), database.IsFollowingParams{
 		FollowerID:  requestUser.ID,
-		FollowingID: user.ID,
+		FollowingID: article.AuthorID,
 	})
 	if err != nil {
 		h.RespondWithDatabaseError(w, err)
 		return
 	}
 
-	h.RespondWithJSON(w, 200, buildArticleResponse(article, user, tags, following))
+	h.RespondWithJSON(w, 200, buildArticleResponse(article, following, isFavorite))
 
 }
 
@@ -239,7 +238,7 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if noUpdate {
-		h.RespondWithJSON(w, 200, buildArticleResponse(article, user, tags, false))
+		h.RespondWithJSON(w, 200, buildArticleResponse(article, false, false))
 		return
 	}
 
@@ -249,7 +248,13 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RespondWithJSON(w, 200, buildArticleResponse(updatedArticle, user, tags, false))
+	favCount, err := h.DbQueries.CountFavorites(context.Background(), updatedArticle.ID)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	h.RespondWithJSON(w, 200, buildArticleResponse(addFavCountToDbArticle(updatedArticle, favCount), false, false))
 
 }
 
@@ -468,4 +473,18 @@ func getListArticlesQueries(r *http.Request) (uint64, uint64, error) {
 	// #nosec G115 -- strconv.ParseInt(..., 10, 32) limits the value to int32 range and
 	// non-negative validation guarantees safe conversion to uint64
 	return uint64(limit), uint64(offset), err
+}
+
+func addFavCountToDbArticle(article database.Article, favCount int64) database.GetArticleBySlugRow {
+	return database.GetArticleBySlugRow{
+		ID:            article.ID,
+		CreatedAt:     article.CreatedAt,
+		UpdatedAt:     article.UpdatedAt,
+		AuthorID:      article.AuthorID,
+		Slug:          article.Slug,
+		Title:         article.Title,
+		Description:   article.Description,
+		Body:          article.Body,
+		FavoriteCount: favCount,
+	}
 }

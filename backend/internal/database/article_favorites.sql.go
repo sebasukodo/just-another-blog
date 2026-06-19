@@ -45,6 +45,28 @@ func (q *Queries) FavoriteArticle(ctx context.Context, arg FavoriteArticleParams
 	return i, err
 }
 
+const getArticleIsFavorite = `-- name: GetArticleIsFavorite :one
+SELECT
+    EXISTS (
+        SELECT 1
+        FROM article_favorites af2
+        WHERE af2.article_id = $1
+          AND af2.user_id = $2
+    ) AS is_favorited
+`
+
+type GetArticleIsFavoriteParams struct {
+	ArticleID int64
+	UserID    uuid.UUID
+}
+
+func (q *Queries) GetArticleIsFavorite(ctx context.Context, arg GetArticleIsFavoriteParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, getArticleIsFavorite, arg.ArticleID, arg.UserID)
+	var is_favorited bool
+	err := row.Scan(&is_favorited)
+	return is_favorited, err
+}
+
 const unfavoriteArticle = `-- name: UnfavoriteArticle :exec
 DELETE FROM article_favorites
 WHERE article_id = $1 AND user_id = $2

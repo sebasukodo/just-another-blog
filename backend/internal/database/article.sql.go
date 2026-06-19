@@ -160,12 +160,45 @@ func (q *Queries) FeedArticles(ctx context.Context, arg FeedArticlesParams) ([]F
 }
 
 const getArticleBySlug = `-- name: GetArticleBySlug :one
-SELECT id, created_at, updated_at, author_id, slug, title, description, body FROM articles WHERE slug = $1
+SELECT
+    a.id, a.created_at, a.updated_at, a.author_id, a.slug, a.title, a.description, a.body,
+    author.username,
+    author.bio,
+    author.image,
+    array_agg(t.name ORDER BY t.name)::text[] AS tags,
+    (SELECT COUNT(*)
+     FROM article_favorites af
+     WHERE af.article_id = a.id
+    ) AS favorite_count
+FROM articles a
+JOIN users author ON author.id = a.author_id
+LEFT JOIN article_tags at
+ON at.article_id = a.id
+LEFT JOIN tags t
+ON t.id = at.tag_id
+WHERE a.slug = $1
+GROUP BY a.id, author.username, author.bio, author.image
 `
 
-func (q *Queries) GetArticleBySlug(ctx context.Context, slug string) (Article, error) {
+type GetArticleBySlugRow struct {
+	ID            int64
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	AuthorID      uuid.UUID
+	Slug          string
+	Title         string
+	Description   string
+	Body          string
+	Username      string
+	Bio           sql.NullString
+	Image         sql.NullString
+	Tags          []string
+	FavoriteCount int64
+}
+
+func (q *Queries) GetArticleBySlug(ctx context.Context, slug string) (GetArticleBySlugRow, error) {
 	row := q.db.QueryRowContext(ctx, getArticleBySlug, slug)
-	var i Article
+	var i GetArticleBySlugRow
 	err := row.Scan(
 		&i.ID,
 		&i.CreatedAt,
@@ -175,6 +208,11 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, slug string) (Article, e
 		&i.Title,
 		&i.Description,
 		&i.Body,
+		&i.Username,
+		&i.Bio,
+		&i.Image,
+		pq.Array(&i.Tags),
+		&i.FavoriteCount,
 	)
 	return i, err
 }

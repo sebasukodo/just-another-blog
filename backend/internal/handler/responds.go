@@ -90,25 +90,22 @@ func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload inter
 	}
 }
 
-func buildArticleResponse(article database.Article, user database.User, tags []string, following bool) RespondArticle {
-	if tags == nil {
-		tags = []string{}
-	}
+func buildArticleResponse(article database.GetArticleBySlugRow, following, isFavorite bool) RespondArticle {
 	return RespondArticle{
 		Article: Article{
 			Slug:           article.Slug,
 			Title:          article.Title,
 			Description:    article.Description,
 			Body:           article.Body,
-			TagList:        tags,
+			TagList:        article.Tags,
 			CreatedAt:      article.CreatedAt,
 			UpdatedAt:      article.UpdatedAt,
-			Favorited:      false,
-			FavoritesCount: 0,
+			Favorited:      isFavorite,
+			FavoritesCount: article.FavoriteCount,
 			Author: Author{
-				Username:  user.Username,
-				Bio:       nullStringToStringPointer(user.Bio),
-				Image:     nullStringToStringPointer(user.Image),
+				Username:  article.Username,
+				Bio:       &article.Bio.String,
+				Image:     &article.Image.String,
 				Following: following,
 			},
 		},
