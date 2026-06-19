@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
@@ -118,20 +117,7 @@ func buildProfileResponse(user database.User, following bool) ProfileResponseBod
 	}
 }
 
-func (h *Handler) buildCommentsResponse(r *http.Request, article database.Article, requestedUserID uuid.UUID, isAuthenticated bool) (RespondArticleComments, error) {
-
-	if !isAuthenticated {
-		requestedUserID = uuid.Nil
-	}
-
-	allComments, err := h.DbQueries.GetCommentsFromArticle(r.Context(), database.GetCommentsFromArticleParams{
-		ArticleID:  article.ID,
-		FollowerID: requestedUserID,
-	})
-	if err != nil {
-		return RespondArticleComments{}, err
-	}
-
+func buildCommentsResponse(allComments []database.GetCommentsFromArticleRow) RespondArticleComments {
 	response := []CommentResponse{}
 	for _, comment := range allComments {
 		response = append(response, CommentResponse{
@@ -149,8 +135,5 @@ func (h *Handler) buildCommentsResponse(r *http.Request, article database.Articl
 			},
 		})
 	}
-
-	return RespondArticleComments{
-		Comments: response,
-	}, nil
+	return RespondArticleComments{Comments: response}
 }

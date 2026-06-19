@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
 
@@ -110,13 +111,21 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestUser, authenticated := r.Context().Value(contextKeyUser).(database.User)
-	response, err := h.buildCommentsResponse(r, article, requestUser.ID, authenticated)
+	userID, isAuthenticated := r.Context().Value(contextKeyUserID).(uuid.UUID)
+	if !isAuthenticated {
+		userID = uuid.Nil
+	}
+
+	allComments, err := h.DbQueries.GetCommentsFromArticle(r.Context(), database.GetCommentsFromArticleParams{
+		ArticleID:  article.ID,
+		FollowerID: userID,
+	})
 	if err != nil {
 		h.RespondWithDatabaseError(w, err)
 		return
 	}
-	h.RespondWithJSON(w, 200, response)
+
+	h.RespondWithJSON(w, 200, buildCommentsResponse(allComments))
 
 }
 
@@ -141,7 +150,7 @@ func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 403, "forbidden", "not author or not found")
+			h.RespondWithError(w, 403, "forbidden", fmt.Sprintf("could not delete comment %v - not author or not found", commentID))
 		} else {
 			h.RespondWithDatabaseError(w, err)
 		}
