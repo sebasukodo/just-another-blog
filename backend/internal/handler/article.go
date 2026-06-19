@@ -307,22 +307,7 @@ func (h *Handler) ListArticles(w http.ResponseWriter, r *http.Request) {
 		LeftJoin("article_tags at ON at.article_id = a.id").
 		LeftJoin("tags t ON t.id = at.tag_id")
 
-	tagQuery := stringToNullString(r.URL.Query().Get("tag"))
-	if tagQuery.Valid {
-		queryBuilder = queryBuilder.Where(sq.Expr(
-			`EXISTS (
-				SELECT 1 FROM article_tags at2
-				JOIN tags t2 ON t2.id = at2.tag_id
-				WHERE at2.article_id = a.id AND t2.name = ?
-			)`,
-			tagQuery.String,
-		))
-	}
-
-	authorQuery := stringToNullString(r.URL.Query().Get("author"))
-	if authorQuery.Valid {
-		queryBuilder = queryBuilder.Where(sq.Eq{"author.username": authorQuery.String})
-	}
+	queryBuilder = applyArticleFiltersToQuery(queryBuilder, r)
 
 	queryBuilder = queryBuilder.
 		GroupBy("a.id", "author.username", "author.bio", "author.image").
@@ -350,13 +335,42 @@ func (h *Handler) ListArticles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	articlesCount, err := h.ListArticlesCount(w, r)
+	articlesCount, err := h.CountListArticles(w, r)
 	if err != nil {
 		h.RespondWithDatabaseError(w, err)
 		return
 	}
 
 	h.RespondWithJSON(w, 200, buildListArticlesResponse(articles, articlesCount))
+}
+
+func (h *Handler) CountListArticles(w http.ResponseWriter, r *http.Request) (int64, error) {
+
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+	queryBuilder := psql.Select(
+		"COUNT(DISTINCT a.id)",
+	)
+
+	queryBuilder = queryBuilder.
+		From("articles a").
+		LeftJoin("users author ON author.id = a.author_id").
+		LeftJoin("article_tags at ON at.article_id = a.id").
+		LeftJoin("tags t ON t.id = at.tag_id")
+
+	queryBuilder = applyArticleFiltersToQuery(queryBuilder, r)
+
+	sqlString, args, err := queryBuilder.ToSql()
+	if err != nil {
+		return 0, err
+	}
+
+	// #nosec G701 -- sqlString is built via Squirrel's query builder
+	// user input is passed as args and not interpolated into SQL string
+	row := h.Db.QueryRowContext(r.Context(), sqlString, args...)
+	var count int64
+	err = row.Scan(&count)
+	fmt.Println(count)
+	return count, err
 }
 
 func (h *Handler) FeedArticles(w http.ResponseWriter, r *http.Request) {
@@ -482,18 +496,7 @@ func addFavCountAndTagsToDbArticle(article database.Article, favCount int64, tag
 	}
 }
 
-func (h *Handler) ListArticlesCount(w http.ResponseWriter, r *http.Request) (int64, error) {
-
-	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
-	queryBuilder := psql.Select(
-		"COUNT(DISTINCT a.id)",
-	)
-
-	queryBuilder = queryBuilder.
-		From("articles a").
-		LeftJoin("users author ON author.id = a.author_id").
-		LeftJoin("article_tags at ON at.article_id = a.id").
-		LeftJoin("tags t ON t.id = at.tag_id")
+func applyArticleFiltersToQuery(queryBuilder sq.SelectBuilder, r *http.Request) sq.SelectBuilder {
 
 	tagQuery := stringToNullString(r.URL.Query().Get("tag"))
 	if tagQuery.Valid {
@@ -512,16 +515,6 @@ func (h *Handler) ListArticlesCount(w http.ResponseWriter, r *http.Request) (int
 		queryBuilder = queryBuilder.Where(sq.Eq{"author.username": authorQuery.String})
 	}
 
-	sqlString, args, err := queryBuilder.ToSql()
-	if err != nil {
-		return 0, err
-	}
+	return queryBuilder
 
-	// #nosec G701 -- sqlString is built via Squirrel's query builder
-	// user input is passed as args and not interpolated into SQL string
-	row := h.Db.QueryRowContext(r.Context(), sqlString, args...)
-	var count int64
-	err = row.Scan(&count)
-	fmt.Println(count)
-	return count, err
 }
