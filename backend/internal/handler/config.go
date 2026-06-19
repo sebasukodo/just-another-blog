@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"log/slog"
 
 	"github.com/sebasukodo/just-another-blog/backend/internal/auth"
@@ -12,14 +13,16 @@ type Handler struct {
 	Config    *config.Env
 	Auth      *auth.Service
 	DbQueries *database.Queries
+	Db        *sql.DB
 	Logger    *slog.Logger
 }
 
-func NewHandler(db *database.Queries, logger *slog.Logger, cfg *config.Env, auth *auth.Service) *Handler {
+func NewHandler(rawDb *sql.DB, db *database.Queries, logger *slog.Logger, cfg *config.Env, auth *auth.Service) *Handler {
 	return &Handler{
 		Config:    cfg,
 		Auth:      auth,
 		DbQueries: db,
+		Db:        rawDb,
 		Logger:    logger,
 	}
 }

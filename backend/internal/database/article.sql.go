@@ -78,6 +78,7 @@ ON at.article_id = a.id
 LEFT JOIN tags t
 ON t.id = at.tag_id
 GROUP BY a.id, u.id
+ORDER BY a.created_at DESC
 LIMIT $2
 OFFSET $3
 `

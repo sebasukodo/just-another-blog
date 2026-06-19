@@ -106,17 +106,46 @@ func buildArticleResponse(article database.Article, user database.User, tags []s
 	}
 }
 
-func buildArticleFeedResponse(feed []database.FeedArticlesRow) RespondArticles {
+func buildListArticlesResponse(articles []database.ListArticle) RespondArticles {
 
-	response := []Article{}
+	response := []ArticleNoBody{}
 
-	for _, article := range feed {
+	for _, article := range articles {
 
-		response = append(response, Article{
+		response = append(response, ArticleNoBody{
 			Slug:           article.Slug,
 			Title:          article.Title,
 			Description:    article.Description,
-			Body:           article.Body,
+			TagList:        article.Tags,
+			CreatedAt:      article.CreatedAt,
+			UpdatedAt:      article.UpdatedAt,
+			Favorited:      false,
+			FavoritesCount: 0,
+			Author: Author{
+				Username:  article.AuthorUsername,
+				Bio:       &article.AuthorBio.String,
+				Image:     &article.AuthorImage.String,
+				Following: article.AuthorIsFollowed,
+			},
+		})
+	}
+
+	return RespondArticles{
+		Article:      response,
+		ArticleCount: len(articles),
+	}
+}
+
+func buildArticleFeedResponse(feed []database.FeedArticlesRow) RespondArticles {
+
+	response := []ArticleNoBody{}
+
+	for _, article := range feed {
+
+		response = append(response, ArticleNoBody{
+			Slug:           article.Slug,
+			Title:          article.Title,
+			Description:    article.Description,
 			TagList:        article.Tags,
 			CreatedAt:      article.CreatedAt,
 			UpdatedAt:      article.UpdatedAt,
