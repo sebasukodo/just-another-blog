@@ -165,7 +165,7 @@ SELECT
     author.username,
     author.bio,
     author.image,
-    array_agg(t.name ORDER BY t.name)::text[] AS tags,
+    array_agg(t.name ORDER BY t.name) FILTER (WHERE t.name IS NOT NULL)::text[] AS tags,
     (SELECT COUNT(*)
      FROM article_favorites af
      WHERE af.article_id = a.id
@@ -256,6 +256,40 @@ func (q *Queries) GetArticleTagsByArticleID(ctx context.Context, id int64) ([]st
 		return nil, err
 	}
 	return items, nil
+}
+
+const getArticlesCount = `-- name: GetArticlesCount :one
+SELECT COUNT(*)
+FROM articles
+`
+
+func (q *Queries) GetArticlesCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getArticlesCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getArticlesFeedCount = `-- name: GetArticlesFeedCount :one
+SELECT COUNT(*)
+FROM articles a
+JOIN users u
+ON a.author_id = u.id
+JOIN user_follows uf
+ON uf.follower_id = $1 AND uf.following_id = a.author_id
+LEFT JOIN article_tags at
+ON at.article_id = a.id
+LEFT JOIN tags t
+ON t.id = at.tag_id
+GROUP BY a.id, u.id
+ORDER BY a.created_at DESC
+`
+
+func (q *Queries) GetArticlesFeedCount(ctx context.Context, followerID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getArticlesFeedCount, followerID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const updateArticleBySlug = `-- name: UpdateArticleBySlug :one

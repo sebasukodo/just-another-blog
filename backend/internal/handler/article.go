@@ -46,7 +46,7 @@ type RespondArticle struct {
 
 type RespondArticles struct {
 	Article      []ArticleNoBody `json:"articles"`
-	ArticleCount int             `json:"articlesCount"`
+	ArticleCount int64           `json:"articlesCount"`
 }
 
 type Article struct {
@@ -121,7 +121,7 @@ func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RespondWithJSON(w, 201, buildArticleResponse(addFavCountToDbArticle(article, 0), false, false))
+	h.RespondWithJSON(w, 201, buildArticleResponse(addFavCountAndTagsToDbArticle(article, 0, articleInfo.Article.TagList), false, false))
 
 }
 
@@ -234,7 +234,7 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RespondWithJSON(w, 200, buildArticleResponse(addFavCountToDbArticle(updatedArticle, favCount), false, false))
+	h.RespondWithJSON(w, 200, buildArticleResponse(addFavCountAndTagsToDbArticle(updatedArticle, favCount, article.Tags), false, false))
 
 }
 
@@ -281,7 +281,7 @@ func (h *Handler) ListArticles(w http.ResponseWriter, r *http.Request) {
 		"a.id", "a.created_at", "a.updated_at", "a.author_id",
 		"a.slug", "a.title", "a.description",
 		"author.username", "author.bio", "author.image",
-		"array_agg(t.name ORDER BY t.name)::text[] AS tags",
+		"array_agg(t.name ORDER BY t.name) FILTER (WHERE t.name IS NOT NULL)::text[] AS tags",
 	)
 
 	userID, isAuthenticated := r.Context().Value(contextKeyUserID).(uuid.UUID)
@@ -350,7 +350,13 @@ func (h *Handler) ListArticles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RespondWithJSON(w, 200, buildListArticlesResponse(articles))
+	articlesCount, err := h.ListArticlesCount(w, r)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	h.RespondWithJSON(w, 200, buildListArticlesResponse(articles, articlesCount))
 }
 
 func (h *Handler) FeedArticles(w http.ResponseWriter, r *http.Request) {
@@ -377,7 +383,13 @@ func (h *Handler) FeedArticles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RespondWithJSON(w, 200, buildArticleFeedResponse(feed))
+	feedCount, err := h.DbQueries.GetArticlesFeedCount(r.Context(), user.ID)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	h.RespondWithJSON(w, 200, buildArticleFeedResponse(feed, feedCount))
 
 }
 
@@ -455,7 +467,7 @@ func getListArticlesQueries(r *http.Request) (uint64, uint64, error) {
 	return uint64(limit), uint64(offset), err
 }
 
-func addFavCountToDbArticle(article database.Article, favCount int64) database.GetArticleBySlugRow {
+func addFavCountAndTagsToDbArticle(article database.Article, favCount int64, tags []string) database.GetArticleBySlugRow {
 	return database.GetArticleBySlugRow{
 		ID:            article.ID,
 		CreatedAt:     article.CreatedAt,
@@ -465,6 +477,51 @@ func addFavCountToDbArticle(article database.Article, favCount int64) database.G
 		Title:         article.Title,
 		Description:   article.Description,
 		Body:          article.Body,
+		Tags:          tags,
 		FavoriteCount: favCount,
 	}
+}
+
+func (h *Handler) ListArticlesCount(w http.ResponseWriter, r *http.Request) (int64, error) {
+
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+	queryBuilder := psql.Select(
+		"COUNT(DISTINCT a.id)",
+	)
+
+	queryBuilder = queryBuilder.
+		From("articles a").
+		LeftJoin("users author ON author.id = a.author_id").
+		LeftJoin("article_tags at ON at.article_id = a.id").
+		LeftJoin("tags t ON t.id = at.tag_id")
+
+	tagQuery := stringToNullString(r.URL.Query().Get("tag"))
+	if tagQuery.Valid {
+		queryBuilder = queryBuilder.Where(sq.Expr(
+			`EXISTS (
+				SELECT 1 FROM article_tags at2
+				JOIN tags t2 ON t2.id = at2.tag_id
+				WHERE at2.article_id = a.id AND t2.name = ?
+			)`,
+			tagQuery.String,
+		))
+	}
+
+	authorQuery := stringToNullString(r.URL.Query().Get("author"))
+	if authorQuery.Valid {
+		queryBuilder = queryBuilder.Where(sq.Eq{"author.username": authorQuery.String})
+	}
+
+	sqlString, args, err := queryBuilder.ToSql()
+	if err != nil {
+		return 0, err
+	}
+
+	// #nosec G701 -- sqlString is built via Squirrel's query builder
+	// user input is passed as args and not interpolated into SQL string
+	row := h.Db.QueryRowContext(r.Context(), sqlString, args...)
+	var count int64
+	err = row.Scan(&count)
+	fmt.Println(count)
+	return count, err
 }

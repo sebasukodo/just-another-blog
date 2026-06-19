@@ -74,7 +74,7 @@ func (h *Handler) FollowUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RespondWithJSON(w, 201, buildProfileResponse(toFollowUser, true))
+	h.RespondWithJSON(w, 200, buildProfileResponse(toFollowUser, true))
 
 }
 

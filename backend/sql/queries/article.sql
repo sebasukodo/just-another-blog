@@ -15,7 +15,7 @@ SELECT
     author.username,
     author.bio,
     author.image,
-    array_agg(t.name ORDER BY t.name)::text[] AS tags,
+    array_agg(t.name ORDER BY t.name) FILTER (WHERE t.name IS NOT NULL)::text[] AS tags,
     (SELECT COUNT(*)
      FROM article_favorites af
      WHERE af.article_id = a.id
@@ -58,7 +58,7 @@ SELECT
     u.username,
     u.bio,
     u.image,
-    array_agg(t.name ORDER BY t.name)::text[] AS tags,
+    array_agg(t.name ORDER BY t.name) FILTER (WHERE t.name IS NOT NULL)::text[] AS tags,
     (SELECT COUNT(*)
      FROM article_favorites af
      WHERE af.article_id = a.id
@@ -82,3 +82,21 @@ GROUP BY a.id, u.id
 ORDER BY a.created_at DESC
 LIMIT $2
 OFFSET $3;
+
+-- name: GetArticlesCount :one
+SELECT COUNT(*)
+FROM articles;
+
+-- name: GetArticlesFeedCount :one
+SELECT COUNT(*)
+FROM articles a
+JOIN users u
+ON a.author_id = u.id
+JOIN user_follows uf
+ON uf.follower_id = $1 AND uf.following_id = a.author_id
+LEFT JOIN article_tags at
+ON at.article_id = a.id
+LEFT JOIN tags t
+ON t.id = at.tag_id
+GROUP BY a.id, u.id
+ORDER BY a.created_at DESC;

@@ -273,7 +273,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	h.RespondWithJSON(w, 201, respBody)
+	h.RespondWithJSON(w, 200, respBody)
 
 }
 

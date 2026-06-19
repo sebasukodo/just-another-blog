@@ -112,7 +112,7 @@ func buildArticleResponse(article database.GetArticleBySlugRow, following, isFav
 	}
 }
 
-func buildListArticlesResponse(articles []database.ListArticle) RespondArticles {
+func buildListArticlesResponse(articles []database.ListArticle, articleCount int64) RespondArticles {
 
 	response := []ArticleNoBody{}
 
@@ -138,11 +138,11 @@ func buildListArticlesResponse(articles []database.ListArticle) RespondArticles 
 
 	return RespondArticles{
 		Article:      response,
-		ArticleCount: len(articles),
+		ArticleCount: articleCount,
 	}
 }
 
-func buildArticleFeedResponse(feed []database.FeedArticlesRow) RespondArticles {
+func buildArticleFeedResponse(feed []database.FeedArticlesRow, feedCount int64) RespondArticles {
 
 	response := []ArticleNoBody{}
 
@@ -168,7 +168,7 @@ func buildArticleFeedResponse(feed []database.FeedArticlesRow) RespondArticles {
 
 	return RespondArticles{
 		Article:      response,
-		ArticleCount: len(feed),
+		ArticleCount: feedCount,
 	}
 }
 
