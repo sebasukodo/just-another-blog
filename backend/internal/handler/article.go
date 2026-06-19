@@ -305,9 +305,16 @@ func (h *Handler) ListArticles(w http.ResponseWriter, r *http.Request) {
 			"EXISTS (SELECT 1 FROM user_follows uf WHERE uf.follower_id = ? AND uf.following_id = a.author_id) AS author_is_followed",
 			userID.String(),
 		))
+		queryBuilder = queryBuilder.Column(sq.Expr(
+			"EXISTS (SELECT 1 FROM article_favorites af2 WHERE af2.article_id = a.id AND af2.user_id = ?) AS is_favorited",
+			userID.String(),
+		))
 	} else {
 		queryBuilder = queryBuilder.Column("false AS author_is_followed")
+		queryBuilder = queryBuilder.Column("false AS is_favorited")
 	}
+
+	queryBuilder = queryBuilder.Column("(SELECT COUNT(*) FROM article_favorites af WHERE af.article_id = a.id) AS favorites_count")
 
 	queryBuilder = queryBuilder.
 		From("articles a").
@@ -376,9 +383,9 @@ func (h *Handler) FeedArticles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	feed, err := h.DbQueries.FeedArticles(r.Context(), database.FeedArticlesParams{
-		FollowerID: user.ID,
-		Limit:      limit,
-		Offset:     offset,
+		UserID: user.ID,
+		Limit:  limit,
+		Offset: offset,
 	})
 	if err != nil {
 		h.RespondWithDatabaseError(w, err)

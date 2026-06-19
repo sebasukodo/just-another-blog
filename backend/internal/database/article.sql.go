@@ -67,7 +67,22 @@ func (q *Queries) DeleteArticleById(ctx context.Context, id int64) error {
 }
 
 const feedArticles = `-- name: FeedArticles :many
-SELECT a.id, a.created_at, a.updated_at, a.author_id, a.slug, a.title, a.description, a.body, u.username, u.bio, u.image, array_agg(t.name ORDER BY t.name)::text[] AS tags
+SELECT
+    a.id, a.created_at, a.updated_at, a.author_id, a.slug, a.title, a.description, a.body,
+    u.username,
+    u.bio,
+    u.image,
+    array_agg(t.name ORDER BY t.name)::text[] AS tags,
+    (SELECT COUNT(*)
+     FROM article_favorites af
+     WHERE af.article_id = a.id
+    ) AS favorites_count,
+    EXISTS (
+        SELECT 1
+        FROM article_favorites af2
+        WHERE af2.article_id = a.id
+          AND af2.user_id = $1
+    ) AS is_favorited
 FROM articles a
 JOIN users u
 ON a.author_id = u.id
@@ -84,28 +99,30 @@ OFFSET $3
 `
 
 type FeedArticlesParams struct {
-	FollowerID uuid.UUID
-	Limit      int32
-	Offset     int32
+	UserID uuid.UUID
+	Limit  int32
+	Offset int32
 }
 
 type FeedArticlesRow struct {
-	ID          int64
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	AuthorID    uuid.UUID
-	Slug        string
-	Title       string
-	Description string
-	Body        string
-	Username    string
-	Bio         sql.NullString
-	Image       sql.NullString
-	Tags        []string
+	ID             int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	AuthorID       uuid.UUID
+	Slug           string
+	Title          string
+	Description    string
+	Body           string
+	Username       string
+	Bio            sql.NullString
+	Image          sql.NullString
+	Tags           []string
+	FavoritesCount int64
+	IsFavorited    bool
 }
 
 func (q *Queries) FeedArticles(ctx context.Context, arg FeedArticlesParams) ([]FeedArticlesRow, error) {
-	rows, err := q.db.QueryContext(ctx, feedArticles, arg.FollowerID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, feedArticles, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -126,6 +143,8 @@ func (q *Queries) FeedArticles(ctx context.Context, arg FeedArticlesParams) ([]F
 			&i.Bio,
 			&i.Image,
 			pq.Array(&i.Tags),
+			&i.FavoritesCount,
+			&i.IsFavorited,
 		); err != nil {
 			return nil, err
 		}

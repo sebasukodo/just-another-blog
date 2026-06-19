@@ -36,7 +36,22 @@ DELETE FROM articles
 WHERE id = $1;
 
 -- name: FeedArticles :many
-SELECT a.*, u.username, u.bio, u.image, array_agg(t.name ORDER BY t.name)::text[] AS tags
+SELECT
+    a.*,
+    u.username,
+    u.bio,
+    u.image,
+    array_agg(t.name ORDER BY t.name)::text[] AS tags,
+    (SELECT COUNT(*)
+     FROM article_favorites af
+     WHERE af.article_id = a.id
+    ) AS favorites_count,
+    EXISTS (
+        SELECT 1
+        FROM article_favorites af2
+        WHERE af2.article_id = a.id
+          AND af2.user_id = $1
+    ) AS is_favorited
 FROM articles a
 JOIN users u
 ON a.author_id = u.id

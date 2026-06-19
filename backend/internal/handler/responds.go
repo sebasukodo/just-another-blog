@@ -26,6 +26,15 @@ type DBError struct {
 	LogMessage string
 }
 
+type buildArticleParams struct {
+	Article         database.Article
+	User            database.User
+	Tags            []string
+	IsFavorite      bool
+	FavoriteCount   int64
+	FollowingAuthor bool
+}
+
 func (h *Handler) RespondWithError(w http.ResponseWriter, code int, errorMsg, logMsg string) {
 
 	h.Logger.Error(logMsg)
@@ -119,8 +128,8 @@ func buildListArticlesResponse(articles []database.ListArticle) RespondArticles 
 			TagList:        article.Tags,
 			CreatedAt:      article.CreatedAt,
 			UpdatedAt:      article.UpdatedAt,
-			Favorited:      false,
-			FavoritesCount: 0,
+			Favorited:      article.IsFavorited,
+			FavoritesCount: article.FavoritesCount,
 			Author: Author{
 				Username:  article.AuthorUsername,
 				Bio:       &article.AuthorBio.String,
@@ -149,8 +158,8 @@ func buildArticleFeedResponse(feed []database.FeedArticlesRow) RespondArticles {
 			TagList:        article.Tags,
 			CreatedAt:      article.CreatedAt,
 			UpdatedAt:      article.UpdatedAt,
-			Favorited:      false,
-			FavoritesCount: 0,
+			Favorited:      article.IsFavorited,
+			FavoritesCount: article.FavoritesCount,
 			Author: Author{
 				Username:  article.Username,
 				Bio:       &article.Bio.String,
