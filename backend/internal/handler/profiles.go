@@ -7,7 +7,7 @@ import (
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
 
-type ProfileResponseBody struct {
+type RespondProfile struct {
 	Profile Profile `json:"profile"`
 }
 

@@ -70,7 +70,7 @@ func run(ctx context.Context, cancel context.CancelFunc) int {
 
 	dbQueries := database.New(db)
 	authService := auth.NewService(cfg.TokenSecret, cfg.TokenIssuer, logger)
-	handler := handler.NewHandler(dbQueries, logger, cfg, authService)
+	handler := handler.NewHandler(db, dbQueries, logger, cfg, authService)
 
 	s := newServer(handler, cancel)
 	var serverErr error

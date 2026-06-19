@@ -9,31 +9,32 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
 
-type CommentRequestBody struct {
-	Comment CommentRequest `json:"comment"`
+type AddCommentRequest struct {
+	Comment AddComment `json:"comment"`
 }
 
-type CommentRequest struct {
+type AddComment struct {
 	Body string `json:"body"`
 }
 
-type CommentResponseBody struct {
-	Comment CommentResponse `json:"comment"`
+type RespondComment struct {
+	Comment Comment `json:"comment"`
 }
 
-type CommentResponse struct {
-	Id        int64               `json:"id"`
-	CreatedAt time.Time           `json:"createdAt"`
-	UpdatedAt time.Time           `json:"updatedAt"`
-	Body      string              `json:"body"`
-	Author    ProfileResponseBody `json:"author"`
+type RespondComments struct {
+	Comments []Comment `json:"comments"`
 }
 
-type RespondArticleComments struct {
-	Comments []CommentResponse `json:"comments"`
+type Comment struct {
+	Id        int64          `json:"id"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	Body      string         `json:"body"`
+	Author    RespondProfile `json:"author"`
 }
 
 func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +49,7 @@ func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
 
-	commentInfo := CommentRequestBody{}
+	commentInfo := AddCommentRequest{}
 
 	if err := decoder.Decode(&commentInfo); err != nil {
 		h.RespondWithError(w, 400, "invalid request body", err.Error())
@@ -86,8 +87,8 @@ func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseBody := CommentResponseBody{
-		Comment: CommentResponse{
+	responseBody := RespondComment{
+		Comment: Comment{
 			Id:        comment.ID,
 			CreatedAt: comment.CreatedAt,
 			UpdatedAt: comment.UpdatedAt,
@@ -110,13 +111,21 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestUser, authenticated := r.Context().Value(contextKeyUser).(database.User)
-	response, err := h.buildCommentsResponse(r, article, requestUser.ID, authenticated)
+	userID, isAuthenticated := r.Context().Value(contextKeyUserID).(uuid.UUID)
+	if !isAuthenticated {
+		userID = uuid.Nil
+	}
+
+	allComments, err := h.DbQueries.GetCommentsFromArticle(r.Context(), database.GetCommentsFromArticleParams{
+		ArticleID:  article.ID,
+		FollowerID: userID,
+	})
 	if err != nil {
 		h.RespondWithDatabaseError(w, err)
 		return
 	}
-	h.RespondWithJSON(w, 200, response)
+
+	h.RespondWithJSON(w, 200, buildCommentsResponse(allComments))
 
 }
 
@@ -141,7 +150,7 @@ func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 403, "forbidden", "not author or not found")
+			h.RespondWithError(w, 403, "forbidden", fmt.Sprintf("could not delete comment %v - not author or not found", commentID))
 		} else {
 			h.RespondWithDatabaseError(w, err)
 		}

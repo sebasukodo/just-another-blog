@@ -34,3 +34,19 @@ RETURNING *;
 -- name: DeleteArticleById :exec
 DELETE FROM articles
 WHERE id = $1;
+
+-- name: FeedArticles :many
+SELECT a.*, u.username, u.bio, u.image, array_agg(t.name ORDER BY t.name)::text[] AS tags
+FROM articles a
+JOIN users u
+ON a.author_id = u.id
+JOIN user_follows uf
+ON uf.follower_id = $1 AND uf.following_id = a.author_id
+LEFT JOIN article_tags at
+ON at.article_id = a.id
+LEFT JOIN tags t
+ON t.id = at.tag_id
+GROUP BY a.id, u.id
+ORDER BY a.created_at DESC
+LIMIT $2
+OFFSET $3;

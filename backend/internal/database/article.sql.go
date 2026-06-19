@@ -8,8 +8,10 @@ package database
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const createArticle = `-- name: CreateArticle :one
@@ -62,6 +64,80 @@ WHERE id = $1
 func (q *Queries) DeleteArticleById(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deleteArticleById, id)
 	return err
+}
+
+const feedArticles = `-- name: FeedArticles :many
+SELECT a.id, a.created_at, a.updated_at, a.author_id, a.slug, a.title, a.description, a.body, u.username, u.bio, u.image, array_agg(t.name ORDER BY t.name)::text[] AS tags
+FROM articles a
+JOIN users u
+ON a.author_id = u.id
+JOIN user_follows uf
+ON uf.follower_id = $1 AND uf.following_id = a.author_id
+LEFT JOIN article_tags at
+ON at.article_id = a.id
+LEFT JOIN tags t
+ON t.id = at.tag_id
+GROUP BY a.id, u.id
+ORDER BY a.created_at DESC
+LIMIT $2
+OFFSET $3
+`
+
+type FeedArticlesParams struct {
+	FollowerID uuid.UUID
+	Limit      int32
+	Offset     int32
+}
+
+type FeedArticlesRow struct {
+	ID          int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	AuthorID    uuid.UUID
+	Slug        string
+	Title       string
+	Description string
+	Body        string
+	Username    string
+	Bio         sql.NullString
+	Image       sql.NullString
+	Tags        []string
+}
+
+func (q *Queries) FeedArticles(ctx context.Context, arg FeedArticlesParams) ([]FeedArticlesRow, error) {
+	rows, err := q.db.QueryContext(ctx, feedArticles, arg.FollowerID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FeedArticlesRow
+	for rows.Next() {
+		var i FeedArticlesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AuthorID,
+			&i.Slug,
+			&i.Title,
+			&i.Description,
+			&i.Body,
+			&i.Username,
+			&i.Bio,
+			&i.Image,
+			pq.Array(&i.Tags),
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getArticleBySlug = `-- name: GetArticleBySlug :one

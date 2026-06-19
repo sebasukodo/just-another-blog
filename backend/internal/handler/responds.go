@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
@@ -107,8 +106,68 @@ func buildArticleResponse(article database.Article, user database.User, tags []s
 	}
 }
 
-func buildProfileResponse(user database.User, following bool) ProfileResponseBody {
-	return ProfileResponseBody{
+func buildListArticlesResponse(articles []database.ListArticle) RespondArticles {
+
+	response := []ArticleNoBody{}
+
+	for _, article := range articles {
+
+		response = append(response, ArticleNoBody{
+			Slug:           article.Slug,
+			Title:          article.Title,
+			Description:    article.Description,
+			TagList:        article.Tags,
+			CreatedAt:      article.CreatedAt,
+			UpdatedAt:      article.UpdatedAt,
+			Favorited:      false,
+			FavoritesCount: 0,
+			Author: Author{
+				Username:  article.AuthorUsername,
+				Bio:       &article.AuthorBio.String,
+				Image:     &article.AuthorImage.String,
+				Following: article.AuthorIsFollowed,
+			},
+		})
+	}
+
+	return RespondArticles{
+		Article:      response,
+		ArticleCount: len(articles),
+	}
+}
+
+func buildArticleFeedResponse(feed []database.FeedArticlesRow) RespondArticles {
+
+	response := []ArticleNoBody{}
+
+	for _, article := range feed {
+
+		response = append(response, ArticleNoBody{
+			Slug:           article.Slug,
+			Title:          article.Title,
+			Description:    article.Description,
+			TagList:        article.Tags,
+			CreatedAt:      article.CreatedAt,
+			UpdatedAt:      article.UpdatedAt,
+			Favorited:      false,
+			FavoritesCount: 0,
+			Author: Author{
+				Username:  article.Username,
+				Bio:       &article.Bio.String,
+				Image:     &article.Image.String,
+				Following: true,
+			},
+		})
+	}
+
+	return RespondArticles{
+		Article:      response,
+		ArticleCount: len(feed),
+	}
+}
+
+func buildProfileResponse(user database.User, following bool) RespondProfile {
+	return RespondProfile{
 		Profile: Profile{
 			Username:  user.Username,
 			Bio:       user.Bio.String,
@@ -118,28 +177,15 @@ func buildProfileResponse(user database.User, following bool) ProfileResponseBod
 	}
 }
 
-func (h *Handler) buildCommentsResponse(r *http.Request, article database.Article, requestedUserID uuid.UUID, isAuthenticated bool) (RespondArticleComments, error) {
-
-	if !isAuthenticated {
-		requestedUserID = uuid.Nil
-	}
-
-	allComments, err := h.DbQueries.GetCommentsFromArticle(r.Context(), database.GetCommentsFromArticleParams{
-		ArticleID:  article.ID,
-		FollowerID: requestedUserID,
-	})
-	if err != nil {
-		return RespondArticleComments{}, err
-	}
-
-	response := []CommentResponse{}
+func buildCommentsResponse(allComments []database.GetCommentsFromArticleRow) RespondComments {
+	response := []Comment{}
 	for _, comment := range allComments {
-		response = append(response, CommentResponse{
+		response = append(response, Comment{
 			Id:        comment.ID,
 			CreatedAt: comment.CreatedAt,
 			UpdatedAt: comment.UpdatedAt,
 			Body:      comment.Body,
-			Author: ProfileResponseBody{
+			Author: RespondProfile{
 				Profile: Profile{
 					Username:  comment.Username,
 					Bio:       comment.Bio.String,
@@ -149,8 +195,5 @@ func (h *Handler) buildCommentsResponse(r *http.Request, article database.Articl
 			},
 		})
 	}
-
-	return RespondArticleComments{
-		Comments: response,
-	}, nil
+	return RespondComments{Comments: response}
 }

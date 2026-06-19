@@ -8,35 +8,45 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
+	sq "github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
 
-type ArticleCreateRequest struct {
-	Article ArticleCreate `json:"article"`
+const queryLimit int64 = 150
+
+type CreateArticleRequest struct {
+	Article CreateArticle `json:"article"`
 }
 
-type ArticleUpdateRequestBody struct {
-	Article ArticleUpdateRequest `json:"article"`
-}
-
-type ArticleUpdateRequest struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Body        string `json:"body"`
-}
-
-type ArticleCreate struct {
+type CreateArticle struct {
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
 	Body        string   `json:"body"`
 	TagList     []string `json:"tagList"`
 }
 
+type UpdateArticleRequest struct {
+	Article UpdateArticle `json:"article"`
+}
+
+type UpdateArticle struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Body        string `json:"body"`
+}
+
 type RespondArticle struct {
 	Article Article `json:"article"`
+}
+
+type RespondArticles struct {
+	Article      []ArticleNoBody `json:"articles"`
+	ArticleCount int             `json:"articlesCount"`
 }
 
 type Article struct {
@@ -44,6 +54,18 @@ type Article struct {
 	Title          string    `json:"title"`
 	Description    string    `json:"description"`
 	Body           string    `json:"body"`
+	TagList        []string  `json:"tagList"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+	Favorited      bool      `json:"favorited"`
+	FavoritesCount int64     `json:"favoritesCount"`
+	Author         Author    `json:"author"`
+}
+
+type ArticleNoBody struct {
+	Slug           string    `json:"slug"`
+	Title          string    `json:"title"`
+	Description    string    `json:"description"`
 	TagList        []string  `json:"tagList"`
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
@@ -69,7 +91,7 @@ func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
 
-	articleInfo := ArticleCreateRequest{}
+	articleInfo := CreateArticleRequest{}
 
 	if err := decoder.Decode(&articleInfo); err != nil {
 		h.RespondWithError(w, 400, "invalid request body", err.Error())
@@ -158,7 +180,7 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
 
-	articleInfo := ArticleUpdateRequestBody{}
+	articleInfo := UpdateArticleRequest{}
 
 	if err := decoder.Decode(&articleInfo); err != nil {
 		h.RespondWithError(w, 401, "invalid request body", err.Error())
@@ -261,6 +283,112 @@ func (h *Handler) DeleteArticle(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (h *Handler) ListArticles(w http.ResponseWriter, r *http.Request) {
+
+	limit, offset, err := getListArticlesQueries(r)
+	if err != nil {
+		h.RespondWithError(w, 400, "bad request", fmt.Sprintf("could not parse limit or offset query parameters to int: %v", err))
+		return
+	}
+
+	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+	queryBuilder := psql.Select(
+		"a.id", "a.created_at", "a.updated_at", "a.author_id",
+		"a.slug", "a.title", "a.description",
+		"author.username", "author.bio", "author.image",
+		"array_agg(t.name ORDER BY t.name)::text[] AS tags",
+	)
+
+	userID, isAuthenticated := r.Context().Value(contextKeyUserID).(uuid.UUID)
+	if isAuthenticated {
+		queryBuilder = queryBuilder.Column(sq.Expr(
+			"EXISTS (SELECT 1 FROM user_follows uf WHERE uf.follower_id = ? AND uf.following_id = a.author_id) AS author_is_followed",
+			userID.String(),
+		))
+	} else {
+		queryBuilder = queryBuilder.Column("false AS author_is_followed")
+	}
+
+	queryBuilder = queryBuilder.
+		From("articles a").
+		LeftJoin("users author ON author.id = a.author_id").
+		LeftJoin("article_tags at ON at.article_id = a.id").
+		LeftJoin("tags t ON t.id = at.tag_id")
+
+	tagQuery := stringToNullString(r.URL.Query().Get("tag"))
+	if tagQuery.Valid {
+		queryBuilder = queryBuilder.Where(sq.Expr(
+			`EXISTS (
+				SELECT 1 FROM article_tags at2
+				JOIN tags t2 ON t2.id = at2.tag_id
+				WHERE at2.article_id = a.id AND t2.name = ?
+			)`,
+			tagQuery.String,
+		))
+	}
+
+	authorQuery := stringToNullString(r.URL.Query().Get("author"))
+	if authorQuery.Valid {
+		queryBuilder = queryBuilder.Where(sq.Eq{"author.username": authorQuery.String})
+	}
+
+	queryBuilder = queryBuilder.
+		GroupBy("a.id", "author.username", "author.bio", "author.image").
+		OrderBy("a.created_at DESC").
+		Limit(limit).
+		Offset(offset)
+
+	sqlString, args, err := queryBuilder.ToSql()
+	if err != nil {
+		h.RespondWithError(w, 400, "bad request", fmt.Sprintf("an error occured while listing articles: %v", err))
+		return
+	}
+
+	// #nosec G701 -- sqlString is built via Squirrel's query builder
+	// user input is passed as args and not interpolated into SQL string
+	rows, err := h.Db.QueryContext(r.Context(), sqlString, args...)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	articles, err := database.ScanListArticles(rows)
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	h.RespondWithJSON(w, 200, buildListArticlesResponse(articles))
+}
+
+func (h *Handler) FeedArticles(w http.ResponseWriter, r *http.Request) {
+
+	user, ok := r.Context().Value(contextKeyUser).(database.User)
+	if !ok {
+		h.RespondWithError(w, 401, "access denied", "missing user context")
+		return
+	}
+
+	limit, offset, err := getFeedArticlesQueries(r)
+	if err != nil {
+		h.RespondWithError(w, 400, "bad request", fmt.Sprintf("could not parse limit or offset query parameters to int: %v", err))
+		return
+	}
+
+	feed, err := h.DbQueries.FeedArticles(r.Context(), database.FeedArticlesParams{
+		FollowerID: user.ID,
+		Limit:      limit,
+		Offset:     offset,
+	})
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	h.RespondWithJSON(w, 200, buildArticleFeedResponse(feed))
+
+}
+
 func (h *Handler) generateUniqueSlug(ctx context.Context, title string, currentID int64) (string, error) {
 	baseSlug, err := generateSlug(title)
 	if err != nil {
@@ -294,4 +422,43 @@ func generateSlug(title string) (string, error) {
 		return "", err
 	}
 	return reg.ReplaceAllString(result, ""), nil
+}
+
+func parseLimitOffset(r *http.Request) (int64, int64, error) {
+	var limit int64 = 20
+	var offset int64 = 0
+	var err error
+
+	limitQuery := r.URL.Query().Get("limit")
+	if limitQuery != "" {
+		limit, err = strconv.ParseInt(limitQuery, 10, 32)
+		if err != nil || limit < 0 {
+			return 0, 0, fmt.Errorf("limit %v - error %v", limitQuery, err)
+		}
+		if limit > queryLimit {
+			limit = queryLimit
+		}
+	}
+
+	offsetQuery := r.URL.Query().Get("offset")
+	if offsetQuery != "" {
+		offset, err = strconv.ParseInt(offsetQuery, 10, 32)
+		if err != nil || offset < 0 {
+			return 0, 0, fmt.Errorf("offset %v - error %v", offsetQuery, err)
+		}
+	}
+	return limit, offset, nil
+}
+
+func getFeedArticlesQueries(r *http.Request) (int32, int32, error) {
+	limit, offset, err := parseLimitOffset(r)
+	// #nosec G115 -- strconv.ParseInt(..., 10, 32) limits the value to int32 range
+	return int32(limit), int32(offset), err
+}
+
+func getListArticlesQueries(r *http.Request) (uint64, uint64, error) {
+	limit, offset, err := parseLimitOffset(r)
+	// #nosec G115 -- strconv.ParseInt(..., 10, 32) limits the value to int32 range and
+	// non-negative validation guarantees safe conversion to uint64
+	return uint64(limit), uint64(offset), err
 }
