@@ -50,6 +50,8 @@ func newServer(h *handler.Handler, cancel context.CancelFunc) *server {
 	mux.HandleFunc("PUT /api/articles/{slug}", h.AuthMiddleware(h.UpdateArticle))
 	mux.HandleFunc("DELETE /api/articles/{slug}", h.AuthMiddleware(h.DeleteArticle))
 
+	mux.HandleFunc("GET /api/articles/feed", h.AuthMiddleware(h.FeedArticles))
+
 	mux.HandleFunc("POST /api/articles/{slug}/comments", h.AuthMiddleware(h.AddComment))
 	mux.HandleFunc("GET /api/articles/{slug}/comments", h.OptionalAuthMiddleware(h.GetComments))
 	mux.HandleFunc("DELETE /api/articles/{slug}/comments/{commentID}", h.AuthMiddleware(h.DeleteComment))

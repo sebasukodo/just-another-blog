@@ -106,6 +106,37 @@ func buildArticleResponse(article database.Article, user database.User, tags []s
 	}
 }
 
+func buildArticleFeedResponse(feed []database.FeedArticlesRow) RespondArticles {
+
+	response := []Article{}
+
+	for _, article := range feed {
+
+		response = append(response, Article{
+			Slug:           article.Slug,
+			Title:          article.Title,
+			Description:    article.Description,
+			Body:           article.Body,
+			TagList:        article.Tags,
+			CreatedAt:      article.CreatedAt,
+			UpdatedAt:      article.UpdatedAt,
+			Favorited:      false,
+			FavoritesCount: 0,
+			Author: Author{
+				Username:  article.Username,
+				Bio:       &article.Bio.String,
+				Image:     &article.Image.String,
+				Following: true,
+			},
+		})
+	}
+
+	return RespondArticles{
+		Article:      response,
+		ArticleCount: len(feed),
+	}
+}
+
 func buildProfileResponse(user database.User, following bool) RespondProfile {
 	return RespondProfile{
 		Profile: Profile{

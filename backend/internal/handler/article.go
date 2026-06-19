@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,6 +38,11 @@ type UpdateArticle struct {
 
 type RespondArticle struct {
 	Article Article `json:"article"`
+}
+
+type RespondArticles struct {
+	Article      []Article `json:"articles"`
+	ArticleCount int       `json:"articlesCount"`
 }
 
 type Article struct {
@@ -261,6 +267,34 @@ func (h *Handler) DeleteArticle(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (h *Handler) FeedArticles(w http.ResponseWriter, r *http.Request) {
+
+	user, ok := r.Context().Value(contextKeyUser).(database.User)
+	if !ok {
+		h.RespondWithError(w, 401, "access denied", "missing user context")
+		return
+	}
+
+	limit, offset, err := getFeedArticlesQueries(r)
+	if err != nil {
+		h.RespondWithError(w, 400, "bad request", "could not parse limit or offset query parameters to int")
+		return
+	}
+
+	feed, err := h.DbQueries.FeedArticles(r.Context(), database.FeedArticlesParams{
+		FollowerID: user.ID,
+		Limit:      limit,
+		Offset:     offset,
+	})
+	if err != nil {
+		h.RespondWithDatabaseError(w, err)
+		return
+	}
+
+	h.RespondWithJSON(w, 200, buildArticleFeedResponse(feed))
+
+}
+
 func (h *Handler) generateUniqueSlug(ctx context.Context, title string, currentID int64) (string, error) {
 	baseSlug, err := generateSlug(title)
 	if err != nil {
@@ -294,4 +328,28 @@ func generateSlug(title string) (string, error) {
 		return "", err
 	}
 	return reg.ReplaceAllString(result, ""), nil
+}
+
+func getFeedArticlesQueries(r *http.Request) (int32, int32, error) {
+	var limit int64 = 20
+	var offset int64 = 0
+	var err error
+
+	limitQuery := r.URL.Query().Get("limit")
+	if limitQuery != "" {
+		limit, err = strconv.ParseInt(limitQuery, 10, 64)
+		if err != nil {
+			return int32(limit), int32(offset), err
+		}
+	}
+
+	offsetQuery := r.URL.Query().Get("offset")
+	if offsetQuery != "" {
+		offset, err = strconv.ParseInt(offsetQuery, 10, 64)
+		if err != nil {
+			return int32(limit), int32(offset), err
+		}
+	}
+
+	return int32(limit), int32(offset), nil
 }
