@@ -15,7 +15,7 @@ func (h *Handler) GetTags(w http.ResponseWriter, r *http.Request) {
 
 	tags, err := h.DbQueries.GetTags(r.Context())
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "tags", err)
 		return
 	}
 

@@ -20,18 +20,18 @@ import (
 const queryLimit int64 = 150
 
 type CreateArticleRequest struct {
-	Article CreateArticle `json:"article"`
+	Article CreateArticle `json:"article" validate:"required"`
 }
 
 type CreateArticle struct {
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Body        string   `json:"body"`
+	Title       string   `json:"title" validate:"required"`
+	Description string   `json:"description" validate:"required"`
+	Body        string   `json:"body" validate:"required"`
 	TagList     []string `json:"tagList"`
 }
 
 type UpdateArticleRequest struct {
-	Article UpdateArticle `json:"article"`
+	Article UpdateArticle `json:"article" validate:"required"`
 }
 
 type UpdateArticle struct {
@@ -83,24 +83,29 @@ type Author struct {
 
 func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 
-	user, ok := r.Context().Value(contextKeyUser).(database.User)
-	if !ok {
-		h.RespondWithError(w, 401, "access denied", "missing user context")
-		return
-	}
-
 	decoder := json.NewDecoder(r.Body)
 
 	articleInfo := CreateArticleRequest{}
 
 	if err := decoder.Decode(&articleInfo); err != nil {
-		h.RespondWithError(w, 400, "invalid request body", err.Error())
+		h.RespondWithError(w, 400, "body", "invalid request body", err.Error())
+		return
+	}
+
+	if err := h.Validate.Struct(articleInfo); err != nil {
+		h.RespondWithValidationErrors(w, err, "validation failed for creating article")
+		return
+	}
+
+	user, ok := r.Context().Value(contextKeyUser).(database.User)
+	if !ok {
+		h.RespondWithError(w, 401, "body", "access denied", "missing user context")
 		return
 	}
 
 	slug, err := h.generateUniqueSlug(r.Context(), articleInfo.Article.Title, 0)
 	if err != nil {
-		h.RespondWithError(w, 500, "generating slug failed", err.Error())
+		h.RespondWithError(w, 500, "body", "generating slug failed", err.Error())
 		return
 	}
 
@@ -112,12 +117,12 @@ func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 		Body:        articleInfo.Article.Body,
 	})
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "article", err)
 		return
 	}
 
 	if err := h.saveTagsToDatabase(r, article.ID, articleInfo.Article.TagList); err != nil {
-		h.RespondWithError(w, 201, "article created successfully, but could not store tags", fmt.Sprintf("Article %v created, but could not add tags %v: %v", article.ID, articleInfo.Article.TagList, err))
+		h.RespondWithError(w, 201, "article", "article created successfully, but could not store tags", fmt.Sprintf("Article %v created, but could not add tags %v: %v", article.ID, articleInfo.Article.TagList, err))
 		return
 	}
 
@@ -132,9 +137,9 @@ func (h *Handler) GetArticle(w http.ResponseWriter, r *http.Request) {
 	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 404, "not found", fmt.Sprintf("GetArticle request failed, no article found for slug %v", slug))
+			h.RespondWithError(w, 404, "body", "not found", fmt.Sprintf("GetArticle request failed, no article found for slug %v", slug))
 		} else {
-			h.RespondWithDatabaseError(w, err)
+			h.RespondWithDatabaseError(w, "article", err)
 		}
 		return
 	}
@@ -155,7 +160,7 @@ func (h *Handler) GetArticle(w http.ResponseWriter, r *http.Request) {
 		FollowingID: article.AuthorID,
 	})
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "article", err)
 		return
 	}
 
@@ -172,24 +177,29 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 	articleInfo := UpdateArticleRequest{}
 
 	if err := decoder.Decode(&articleInfo); err != nil {
-		h.RespondWithError(w, 401, "invalid request body", err.Error())
+		h.RespondWithError(w, 401, "body", "invalid request body", err.Error())
+		return
+	}
+
+	if err := h.Validate.Struct(articleInfo); err != nil {
+		h.RespondWithValidationErrors(w, err, "validation failed for updating article")
 		return
 	}
 
 	user, ok := r.Context().Value(contextKeyUser).(database.User)
 	if !ok {
-		h.RespondWithError(w, 401, "access denied", "missing user context")
+		h.RespondWithError(w, 401, "body", "access denied", "missing user context")
 		return
 	}
 
 	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "article", err)
 		return
 	}
 
 	if user.ID != article.AuthorID {
-		h.RespondWithError(w, 403, "access denied", fmt.Sprintf("UpdateArticle request failed, user %v is not author %v", user.ID.String(), article.AuthorID.String()))
+		h.RespondWithError(w, 403, "body", "access denied", fmt.Sprintf("UpdateArticle request failed, user %v is not author %v", user.ID.String(), article.AuthorID.String()))
 		return
 	}
 
@@ -202,7 +212,7 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		updateInfo.Title = stringToNullString(articleInfo.Article.Title)
 		newSlug, err := h.generateUniqueSlug(r.Context(), articleInfo.Article.Title, 0)
 		if err != nil {
-			h.RespondWithError(w, 401, "could not create unique slug for new title", err.Error())
+			h.RespondWithError(w, 401, "body", "could not create unique slug for new title", err.Error())
 			return
 		}
 		updateInfo.NewSlug = stringToNullString(newSlug)
@@ -224,13 +234,13 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 
 	updatedArticle, err := h.DbQueries.UpdateArticleBySlug(r.Context(), updateInfo)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "article", err)
 		return
 	}
 
 	favCount, err := h.DbQueries.CountFavorites(context.Background(), updatedArticle.ID)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "article", err)
 		return
 	}
 
@@ -244,23 +254,23 @@ func (h *Handler) DeleteArticle(w http.ResponseWriter, r *http.Request) {
 
 	user, ok := r.Context().Value(contextKeyUser).(database.User)
 	if !ok {
-		h.RespondWithError(w, 401, "access denied", "missing user context")
+		h.RespondWithError(w, 401, "body", "access denied", "missing user context")
 		return
 	}
 
 	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "article", err)
 		return
 	}
 
 	if user.ID != article.AuthorID {
-		h.RespondWithError(w, 403, "access denied", fmt.Sprintf("DeleteArticle request failed, user %v is not author %v", user.ID.String(), article.AuthorID.String()))
+		h.RespondWithError(w, 403, "body", "access denied", fmt.Sprintf("DeleteArticle request failed, user %v is not author %v", user.ID.String(), article.AuthorID.String()))
 		return
 	}
 
 	if err := h.DbQueries.DeleteArticleById(r.Context(), article.ID); err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "article", err)
 		return
 	}
 
@@ -272,7 +282,7 @@ func (h *Handler) ListArticles(w http.ResponseWriter, r *http.Request) {
 
 	limit, offset, err := getListArticlesQueries(r)
 	if err != nil {
-		h.RespondWithError(w, 400, "bad request", fmt.Sprintf("could not parse limit or offset query parameters to int: %v", err))
+		h.RespondWithError(w, 400, "body", "bad request", fmt.Sprintf("could not parse limit or offset query parameters to int: %v", err))
 		return
 	}
 
@@ -317,7 +327,7 @@ func (h *Handler) ListArticles(w http.ResponseWriter, r *http.Request) {
 
 	sqlString, args, err := queryBuilder.ToSql()
 	if err != nil {
-		h.RespondWithError(w, 400, "bad request", fmt.Sprintf("an error occured while listing articles: %v", err))
+		h.RespondWithError(w, 400, "body", "bad request", fmt.Sprintf("an error occured while listing articles: %v", err))
 		return
 	}
 
@@ -325,19 +335,19 @@ func (h *Handler) ListArticles(w http.ResponseWriter, r *http.Request) {
 	// user input is passed as args and not interpolated into SQL string
 	rows, err := h.Db.QueryContext(r.Context(), sqlString, args...)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "article", err)
 		return
 	}
 
 	articles, err := database.ScanListArticles(rows)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "article", err)
 		return
 	}
 
 	articlesCount, err := h.CountListArticles(w, r)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "article", err)
 		return
 	}
 
@@ -377,13 +387,13 @@ func (h *Handler) FeedArticles(w http.ResponseWriter, r *http.Request) {
 
 	user, ok := r.Context().Value(contextKeyUser).(database.User)
 	if !ok {
-		h.RespondWithError(w, 401, "access denied", "missing user context")
+		h.RespondWithError(w, 401, "body", "access denied", "missing user context")
 		return
 	}
 
 	limit, offset, err := getFeedArticlesQueries(r)
 	if err != nil {
-		h.RespondWithError(w, 400, "bad request", fmt.Sprintf("could not parse limit or offset query parameters to int: %v", err))
+		h.RespondWithError(w, 400, "body", "bad request", fmt.Sprintf("could not parse limit or offset query parameters to int: %v", err))
 		return
 	}
 
@@ -393,13 +403,13 @@ func (h *Handler) FeedArticles(w http.ResponseWriter, r *http.Request) {
 		Offset: offset,
 	})
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "article", err)
 		return
 	}
 
 	feedCount, err := h.DbQueries.GetArticlesFeedCount(r.Context(), user.ID)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "article", err)
 		return
 	}
 

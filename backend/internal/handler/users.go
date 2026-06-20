@@ -14,26 +14,26 @@ import (
 )
 
 type RegisterUserRequest struct {
-	User RegisterUser `json:"user"`
+	User RegisterUser `json:"user" validate:"required"`
 }
 
 type RegisterUser struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Username string `json:"username" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
 }
 
 type LoginUserRequest struct {
-	User LoginUser `json:"user"`
+	User LoginUser `json:"user" validate:"required"`
 }
 
 type LoginUser struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
 }
 
 type UpdateUserRequest struct {
-	User UpdateUser `json:"user"`
+	User UpdateUser `json:"user" validate:"required"`
 }
 
 type UpdateUser struct {
@@ -66,23 +66,28 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	userInfo := RegisterUserRequest{}
 
 	if err := decoder.Decode(&userInfo); err != nil {
-		h.RespondWithError(w, 400, "invalid request body", err.Error())
+		h.RespondWithError(w, 400, "body", "invalid request body", err.Error())
+		return
+	}
+
+	if err := h.Validate.Struct(userInfo); err != nil {
+		h.RespondWithValidationErrors(w, err, "validation failed for register user")
 		return
 	}
 
 	if userInfo.User.Email == "" || userInfo.User.Username == "" {
-		h.RespondWithError(w, 400, "empty email or username", "user register attempt failed: no email or username")
+		h.RespondWithError(w, 400, "body", "empty email or username", "user register attempt failed: no email or username")
 		return
 	}
 
 	if userInfo.User.Password == "" {
-		h.RespondWithError(w, 400, "empty password", "user register attempt failed: no password")
+		h.RespondWithError(w, 400, "body", "empty password", "user register attempt failed: no password")
 		return
 	}
 
 	hashedPW, err := auth.HashPassword(userInfo.User.Password)
 	if err != nil {
-		h.RespondWithError(w, 500, "could not hash password", fmt.Sprintf("could not hash password: %v", err))
+		h.RespondWithError(w, 500, "users", "could not hash password", fmt.Sprintf("could not hash password: %v", err))
 		return
 	}
 
@@ -92,13 +97,13 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		HashedPassword: hashedPW,
 	})
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "users", err)
 		return
 	}
 
 	token, err := h.Auth.MakeJWT(user.ID, JWTExpiresIn)
 	if err != nil {
-		h.RespondWithError(w, 201, "user registered successfully, but could not create session", fmt.Sprintf("User %v registered, but could not create session: %v", user.ID, err))
+		h.RespondWithError(w, 201, "token", "user registered successfully, but could not create session", fmt.Sprintf("User %v registered, but could not create session: %v", user.ID, err))
 		return
 	}
 
@@ -124,39 +129,44 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	userInfo := LoginUserRequest{}
 
 	if err := decoder.Decode(&userInfo); err != nil {
-		h.RespondWithError(w, 401, "invalid request body", err.Error())
+		h.RespondWithError(w, 401, "body", "invalid request body", err.Error())
+		return
+	}
+
+	if err := h.Validate.Struct(userInfo); err != nil {
+		h.RespondWithValidationErrors(w, err, "validation failed for login user")
 		return
 	}
 
 	if userInfo.User.Email == "" {
-		h.RespondWithError(w, 400, "empty email", "user login attempt failed: no email")
+		h.RespondWithError(w, 400, "body", "empty email", "user login attempt failed: no email")
 		return
 	}
 
 	user, err := h.DbQueries.GetUserByEmail(r.Context(), userInfo.User.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 401, "access denied", fmt.Sprintf("login attempt failed, no user found for email %v", userInfo.User.Email))
+			h.RespondWithError(w, 401, "body", "access denied", fmt.Sprintf("login attempt failed, no user found for email %v", userInfo.User.Email))
 		} else {
-			h.RespondWithDatabaseError(w, err)
+			h.RespondWithDatabaseError(w, "users", err)
 		}
 		return
 	}
 
 	matching, err := auth.CheckPasswordHash(userInfo.User.Password, user.HashedPassword)
 	if err != nil {
-		h.RespondWithError(w, 401, "access denied", fmt.Sprintf("login attempt failed for user %v - %v", user.ID, err))
+		h.RespondWithError(w, 401, "body", "access denied", fmt.Sprintf("login attempt failed for user %v - %v", user.ID, err))
 		return
 	}
 
 	if !matching {
-		h.RespondWithError(w, 401, "access denied", fmt.Sprintf("login attempt failed for user %v - wrong password", user.ID))
+		h.RespondWithError(w, 401, "body", "access denied", fmt.Sprintf("login attempt failed for user %v - wrong password", user.ID))
 		return
 	}
 
 	token, err := h.Auth.MakeJWT(user.ID, JWTExpiresIn)
 	if err != nil {
-		h.RespondWithError(w, 500, "access denied", fmt.Sprintf("user %v logged in successfully, but could not create session: %v", user.ID, err))
+		h.RespondWithError(w, 500, "users", "access denied", fmt.Sprintf("user %v logged in successfully, but could not create session: %v", user.ID, err))
 		return
 	}
 
@@ -181,9 +191,9 @@ func (h *Handler) CurrentUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.DbQueries.GetUserByID(r.Context(), userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 401, "access denied", fmt.Sprintf("CurrentUser request failed, no user found for id %v", userID))
+			h.RespondWithError(w, 401, "body", "access denied", fmt.Sprintf("CurrentUser request failed, no user found for id %v", userID))
 		} else {
-			h.RespondWithDatabaseError(w, err)
+			h.RespondWithDatabaseError(w, "users", err)
 		}
 		return
 	}
@@ -211,7 +221,12 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	userInfo := UpdateUserRequest{}
 
 	if err := decoder.Decode(&userInfo); err != nil {
-		h.RespondWithError(w, 401, "invalid request body", err.Error())
+		h.RespondWithError(w, 401, "body", "invalid request body", err.Error())
+		return
+	}
+
+	if err := h.Validate.Struct(userInfo); err != nil {
+		h.RespondWithValidationErrors(w, err, "validation failed for updating user")
 		return
 	}
 
@@ -227,7 +242,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if userInfo.User.Password != "" {
 		hashPW, err := auth.HashPassword(userInfo.User.Password)
 		if err != nil {
-			h.RespondWithError(w, 500, "could not hash new password", err.Error())
+			h.RespondWithError(w, 500, "users", "could not hash new password", err.Error())
 			return
 		}
 		updateInfo.HashedPassword = stringToNullString(hashPW)
@@ -236,7 +251,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if userInfo.User.Bio != nil && *userInfo.User.Bio == "" {
 		_, err := h.DbQueries.ClearUserBio(r.Context(), userID)
 		if err != nil {
-			h.RespondWithDatabaseError(w, err)
+			h.RespondWithDatabaseError(w, "users", err)
 			return
 		}
 	} else {
@@ -246,7 +261,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if userInfo.User.Image != nil && *userInfo.User.Image == "" {
 		_, err := h.DbQueries.ClearUserImage(r.Context(), userID)
 		if err != nil {
-			h.RespondWithDatabaseError(w, err)
+			h.RespondWithDatabaseError(w, "users", err)
 			return
 		}
 	} else {
@@ -256,9 +271,9 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.DbQueries.UpdateUserByID(r.Context(), updateInfo)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 401, "access denied", fmt.Sprintf("UpdateUser request failed, no user found for id %v", userID))
+			h.RespondWithError(w, 401, "body", "access denied", fmt.Sprintf("UpdateUser request failed, no user found for id %v", userID))
 		} else {
-			h.RespondWithDatabaseError(w, err)
+			h.RespondWithDatabaseError(w, "users", err)
 		}
 		return
 	}
@@ -282,7 +297,7 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(contextKeyUserID).(uuid.UUID)
 
 	if err := h.DbQueries.DeleteUserByID(r.Context(), userID); err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "users", err)
 		return
 	}
 
