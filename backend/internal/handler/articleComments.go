@@ -30,11 +30,11 @@ type RespondComments struct {
 }
 
 type Comment struct {
-	Id        int64         `json:"id"`
-	CreatedAt time.Time     `json:"createdAt"`
-	UpdatedAt time.Time     `json:"updatedAt"`
-	Body      string        `json:"body"`
-	Author    RespondAuthor `json:"author"`
+	Id        int64     `json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	Body      string    `json:"body"`
+	Author    Author    `json:"author"`
 }
 
 func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {

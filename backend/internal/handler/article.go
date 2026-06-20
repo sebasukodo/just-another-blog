@@ -525,6 +525,18 @@ func applyArticleFiltersToQuery(queryBuilder sq.SelectBuilder, r *http.Request) 
 		queryBuilder = queryBuilder.Where(sq.Eq{"author.username": authorQuery.String})
 	}
 
+	favQuery := stringToNullString(r.URL.Query().Get("favorited"))
+	if favQuery.Valid {
+		queryBuilder = queryBuilder.Where(sq.Expr(
+			`EXISTS (
+            SELECT 1 FROM article_favorites af3
+            JOIN users u3 ON u3.id = af3.user_id
+            WHERE af3.article_id = a.id AND u3.username = ?
+        )`,
+			favQuery.String,
+		))
+	}
+
 	return queryBuilder
 
 }

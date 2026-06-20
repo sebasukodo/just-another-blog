@@ -178,14 +178,12 @@ func buildProfileResponse(user database.User, following bool) RespondProfile {
 	}
 }
 
-func buildAuthorResponse(user database.User, following bool) RespondAuthor {
-	return RespondAuthor{
-		Profile: Profile{
-			Username:  user.Username,
-			Bio:       nullStringToStringPointer(user.Bio),
-			Image:     nullStringToStringPointer(user.Image),
-			Following: following,
-		},
+func buildAuthorResponse(user database.User, following bool) Author {
+	return Author{
+		Username:  user.Username,
+		Bio:       nullStringToStringPointer(user.Bio),
+		Image:     nullStringToStringPointer(user.Image),
+		Following: following,
 	}
 }
 
@@ -197,13 +195,11 @@ func buildCommentsResponse(allComments []database.GetCommentsFromArticleRow) Res
 			CreatedAt: comment.CreatedAt,
 			UpdatedAt: comment.UpdatedAt,
 			Body:      comment.Body,
-			Author: RespondAuthor{
-				Profile: Profile{
-					Username:  comment.Username,
-					Bio:       nullStringToStringPointer(comment.Bio),
-					Image:     nullStringToStringPointer(comment.Image),
-					Following: comment.AuthorIsFollowed,
-				},
+			Author: Author{
+				Username:  comment.Username,
+				Bio:       nullStringToStringPointer(comment.Bio),
+				Image:     nullStringToStringPointer(comment.Image),
+				Following: comment.AuthorIsFollowed,
 			},
 		})
 	}
