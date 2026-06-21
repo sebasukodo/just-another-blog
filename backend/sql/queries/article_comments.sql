@@ -7,6 +7,10 @@ VALUES(
 )
 RETURNING *;
 
+-- name: GetCommentByID :one
+SELECT * FROM article_comments
+WHERE id = $1;
+
 -- name: GetCommentsFromArticle :many
 SELECT c.id, c.article_id, c.body, c.author_id, c.created_at, c.updated_at, a.username, a.bio, a.image, EXISTS (
   SELECT 1

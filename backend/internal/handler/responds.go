@@ -128,6 +128,11 @@ func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload any) 
 }
 
 func buildArticleResponse(article database.GetArticleBySlugRow, following, isFavorite bool) RespondArticle {
+
+	if article.Tags == nil {
+		article.Tags = []string{}
+	}
+
 	return RespondArticle{
 		Article: Article{
 			Slug:           article.Slug,
@@ -154,6 +159,10 @@ func buildListArticlesResponse(articles []database.ListArticle, articleCount int
 	response := []ArticleNoBody{}
 
 	for _, article := range articles {
+
+		if article.Tags == nil {
+			article.Tags = []string{}
+		}
 
 		response = append(response, ArticleNoBody{
 			Slug:           article.Slug,
@@ -184,6 +193,10 @@ func buildArticleFeedResponse(feed []database.FeedArticlesRow, feedCount int64) 
 	response := []ArticleNoBody{}
 
 	for _, article := range feed {
+
+		if article.Tags == nil {
+			article.Tags = []string{}
+		}
 
 		response = append(response, ArticleNoBody{
 			Slug:           article.Slug,

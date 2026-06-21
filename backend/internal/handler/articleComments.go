@@ -1,9 +1,7 @@
 package handler
 
 import (
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -50,6 +48,11 @@ func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if commentInfo.Comment.Body == "" {
+		h.RespondWithValidationErrors(w, fmt.Errorf("can't be blank"), "comment body empty")
+		return
+	}
+
 	if err := h.Validate.Struct(commentInfo); err != nil {
 		h.RespondWithValidationErrors(w, err, "validation failed for creating comment")
 		return
@@ -63,7 +66,7 @@ func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 
 	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
 	if err != nil {
-		h.RespondWithDatabaseError(w, fieldErrorComment, err)
+		h.RespondWithDatabaseError(w, fieldErrorArticle, err)
 		return
 	}
 
@@ -112,7 +115,7 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 
 	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
 	if err != nil {
-		h.RespondWithDatabaseError(w, fieldErrorComment, err)
+		h.RespondWithDatabaseError(w, fieldErrorArticle, err)
 		return
 	}
 
@@ -149,16 +152,30 @@ func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	slug := r.PathValue("slug")
+
+	if _, err = h.DbQueries.GetArticleBySlug(r.Context(), slug); err != nil {
+		h.RespondWithDatabaseError(w, fieldErrorArticle, err)
+		return
+	}
+
+	comment, err := h.DbQueries.GetCommentByID(r.Context(), commentID)
+	if err != nil {
+		h.RespondWithDatabaseError(w, fieldErrorComment, err)
+		return
+	}
+
+	if comment.AuthorID != user.ID {
+		h.RespondWithError(w, 403, fieldErrorComment, fmt.Sprintf("could not delete comment %v - not author", commentID))
+		return
+	}
+
 	_, err = h.DbQueries.DeleteCommentFromArticle(r.Context(), database.DeleteCommentFromArticleParams{
 		ID:       commentID,
 		AuthorID: user.ID,
 	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 403, fieldErrorComment, fmt.Sprintf("could not delete comment %v - not author or not found", commentID))
-		} else {
-			h.RespondWithDatabaseError(w, fieldErrorComment, err)
-		}
+		h.RespondWithDatabaseError(w, fieldErrorComment, err)
 		return
 	}
 
