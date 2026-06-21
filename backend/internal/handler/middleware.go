@@ -18,19 +18,19 @@ func (h *Handler) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		headerToken, err := h.Auth.GetToken(r.Header)
 		if err != nil {
-			h.RespondWithError(w, 401, "token", "is missing", fmt.Sprintf("auth failed - no token: %v", err))
+			h.RespondWithError(w, 401, fieldErrorToken, fmt.Sprintf("auth failed - no token: %v", err))
 			return
 		}
 
 		userID, err := h.Auth.ValidateJWT(headerToken)
 		if err != nil {
-			h.RespondWithError(w, 401, "token", "access denied", fmt.Sprintf("auth failed - invalid token: %v", err))
+			h.RespondWithError(w, 401, fieldErrorToken, fmt.Sprintf("auth failed - invalid token: %v", err))
 			return
 		}
 
 		user, err := h.DbQueries.GetUserByID(r.Context(), userID)
 		if err != nil {
-			h.RespondWithError(w, 401, "token", "access denied", fmt.Sprintf("auth failed - user not found: %v", err))
+			h.RespondWithError(w, 401, fieldErrorToken, fmt.Sprintf("auth failed - user not found: %v", err))
 			return
 		}
 

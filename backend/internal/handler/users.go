@@ -66,7 +66,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	userInfo := RegisterUserRequest{}
 
 	if err := decoder.Decode(&userInfo); err != nil {
-		h.RespondWithError(w, 400, "body", "invalid request body", err.Error())
+		h.RespondWithError(w, 422, fieldErrorUser, err.Error())
 		return
 	}
 
@@ -76,18 +76,18 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if userInfo.User.Email == "" || userInfo.User.Username == "" {
-		h.RespondWithError(w, 400, "body", "empty email or username", "user register attempt failed: no email or username")
+		h.RespondWithError(w, 422, fieldErrorUser, "user register attempt failed: no email or username")
 		return
 	}
 
 	if userInfo.User.Password == "" {
-		h.RespondWithError(w, 400, "body", "empty password", "user register attempt failed: no password")
+		h.RespondWithError(w, 422, fieldErrorUser, "user register attempt failed: no password")
 		return
 	}
 
 	hashedPW, err := auth.HashPassword(userInfo.User.Password)
 	if err != nil {
-		h.RespondWithError(w, 500, "users", "could not hash password", fmt.Sprintf("could not hash password: %v", err))
+		h.RespondWithError(w, 500, "users", fmt.Sprintf("could not hash password: %v", err))
 		return
 	}
 
@@ -103,7 +103,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	token, err := h.Auth.MakeJWT(user.ID, JWTExpiresIn)
 	if err != nil {
-		h.RespondWithError(w, 201, "token", "user registered successfully, but could not create session", fmt.Sprintf("User %v registered, but could not create session: %v", user.ID, err))
+		h.RespondWithError(w, 201, "token", fmt.Sprintf("User %v registered, but could not create session: %v", user.ID, err))
 		return
 	}
 
@@ -129,7 +129,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	userInfo := LoginUserRequest{}
 
 	if err := decoder.Decode(&userInfo); err != nil {
-		h.RespondWithError(w, 401, "body", "invalid request body", err.Error())
+		h.RespondWithError(w, 401, fieldErrorUser, err.Error())
 		return
 	}
 
@@ -139,14 +139,14 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if userInfo.User.Email == "" {
-		h.RespondWithError(w, 400, "body", "empty email", "user login attempt failed: no email")
+		h.RespondWithError(w, 422, fieldErrorUser, "user login attempt failed: no email")
 		return
 	}
 
 	user, err := h.DbQueries.GetUserByEmail(r.Context(), userInfo.User.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 401, "body", "access denied", fmt.Sprintf("login attempt failed, no user found for email %v", userInfo.User.Email))
+			h.RespondWithError(w, 401, fieldErrorUser, fmt.Sprintf("login attempt failed, no user found for email %v", userInfo.User.Email))
 		} else {
 			h.RespondWithDatabaseError(w, "users", err)
 		}
@@ -155,18 +155,18 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	matching, err := auth.CheckPasswordHash(userInfo.User.Password, user.HashedPassword)
 	if err != nil {
-		h.RespondWithError(w, 401, "body", "access denied", fmt.Sprintf("login attempt failed for user %v - %v", user.ID, err))
+		h.RespondWithError(w, 401, fieldErrorUser, fmt.Sprintf("login attempt failed for user %v - %v", user.ID, err))
 		return
 	}
 
 	if !matching {
-		h.RespondWithError(w, 401, "body", "access denied", fmt.Sprintf("login attempt failed for user %v - wrong password", user.ID))
+		h.RespondWithError(w, 401, fieldErrorUser, fmt.Sprintf("login attempt failed for user %v - wrong password", user.ID))
 		return
 	}
 
 	token, err := h.Auth.MakeJWT(user.ID, JWTExpiresIn)
 	if err != nil {
-		h.RespondWithError(w, 500, "users", "access denied", fmt.Sprintf("user %v logged in successfully, but could not create session: %v", user.ID, err))
+		h.RespondWithError(w, 500, "users", fmt.Sprintf("user %v logged in successfully, but could not create session: %v", user.ID, err))
 		return
 	}
 
@@ -191,7 +191,7 @@ func (h *Handler) CurrentUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.DbQueries.GetUserByID(r.Context(), userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 401, "body", "access denied", fmt.Sprintf("CurrentUser request failed, no user found for id %v", userID))
+			h.RespondWithError(w, 401, fieldErrorUser, fmt.Sprintf("CurrentUser request failed, no user found for id %v", userID))
 		} else {
 			h.RespondWithDatabaseError(w, "users", err)
 		}
@@ -221,7 +221,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	userInfo := UpdateUserRequest{}
 
 	if err := decoder.Decode(&userInfo); err != nil {
-		h.RespondWithError(w, 401, "body", "invalid request body", err.Error())
+		h.RespondWithError(w, 401, fieldErrorUser, err.Error())
 		return
 	}
 
@@ -242,7 +242,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if userInfo.User.Password != "" {
 		hashPW, err := auth.HashPassword(userInfo.User.Password)
 		if err != nil {
-			h.RespondWithError(w, 500, "users", "could not hash new password", err.Error())
+			h.RespondWithError(w, 500, "users", err.Error())
 			return
 		}
 		updateInfo.HashedPassword = stringToNullString(hashPW)
@@ -271,7 +271,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.DbQueries.UpdateUserByID(r.Context(), updateInfo)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 401, "body", "access denied", fmt.Sprintf("UpdateUser request failed, no user found for id %v", userID))
+			h.RespondWithError(w, 401, fieldErrorUser, fmt.Sprintf("UpdateUser request failed, no user found for id %v", userID))
 		} else {
 			h.RespondWithDatabaseError(w, "users", err)
 		}

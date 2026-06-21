@@ -13,12 +13,49 @@ import (
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
 
-func (h *Handler) RespondWithError(w http.ResponseWriter, code int, field, errorMsg, logMsg string) {
+const (
+	fieldErrorArticle string = "article"
+	fieldErrorComment string = "comment"
+	fieldErrorProfile string = "profile"
+	fieldErrorUser    string = "user"
+	fieldErrorToken   string = "token"
+)
+
+func (h *Handler) RespondWithError(w http.ResponseWriter, code int, field, logMsg string) {
 	h.Logger.Error(logMsg)
+
+	errMsg := ""
+	switch code {
+	case 400:
+		errMsg = "can't be empty"
+	case 401:
+		if field == fieldErrorToken {
+			errMsg = "is missing"
+		} else {
+			errMsg = "not authorized"
+		}
+	case 403:
+		errMsg = "forbidden"
+	case 404:
+		errMsg = "not found"
+	case 409:
+		if field == fieldErrorUser {
+			field = "username"
+			errMsg = "has already been taken"
+		} else {
+			errMsg = "already exists"
+		}
+	case 422:
+		errMsg = "unprocessable entity"
+	case 500:
+		errMsg = "internal server error"
+	default:
+		errMsg = "some error occured"
+	}
 
 	respBody := GenericErrorModel{
 		Errors: map[string][]string{
-			field: {errorMsg},
+			field: {errMsg},
 		},
 	}
 
@@ -47,7 +84,7 @@ func (h *Handler) RespondWithValidationErrors(w http.ResponseWriter, err error, 
 
 func (h *Handler) RespondWithDatabaseError(w http.ResponseWriter, field string, err error) {
 	if errors.Is(err, sql.ErrNoRows) {
-		h.RespondWithError(w, 404, field, "not found", fmt.Sprintf("resource not found: %v", err))
+		h.RespondWithError(w, 404, field, fmt.Sprintf("resource not found: %v", err))
 		return
 	}
 
@@ -55,18 +92,18 @@ func (h *Handler) RespondWithDatabaseError(w http.ResponseWriter, field string, 
 	if errors.As(err, &pqErr) {
 		switch pqErr.Code {
 		case "23505":
-			h.RespondWithError(w, 409, field, "already exists", fmt.Sprintf("database resource already exists: %v", err))
+			h.RespondWithError(w, 409, field, fmt.Sprintf("database resource already exists: %v", err))
 			return
 		case "23502":
-			h.RespondWithError(w, 400, field, "can't be empty", fmt.Sprintf("missing required field for database request: %v", err))
+			h.RespondWithError(w, 400, field, fmt.Sprintf("missing required field for database request: %v", err))
 			return
 		default:
-			h.RespondWithError(w, 500, "body", "internal server error", fmt.Sprintf("database error occured: %v", err))
+			h.RespondWithError(w, 500, field, fmt.Sprintf("database error occured: %v", err))
 			return
 		}
 	}
 
-	h.RespondWithError(w, 500, "body", "internal server error", fmt.Sprintf("database error occured but could not catch specific pqErr: %v", err))
+	h.RespondWithError(w, 500, field, fmt.Sprintf("database error occured but could not catch specific pqErr: %v", err))
 }
 
 func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {

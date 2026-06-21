@@ -15,16 +15,16 @@ func (h *Handler) FavoriteArticle(w http.ResponseWriter, r *http.Request) {
 
 	user, ok := r.Context().Value(contextKeyUser).(database.User)
 	if !ok {
-		h.RespondWithError(w, 401, "body", "access denied", "missing user context")
+		h.RespondWithError(w, 401, fieldErrorArticle, "missing user context")
 		return
 	}
 
 	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 404, "body", "not found", fmt.Sprintf("FavoriteArticle request failed, no article found for slug %v", slug))
+			h.RespondWithError(w, 404, fieldErrorArticle, fmt.Sprintf("FavoriteArticle request failed, no article found for slug %v", slug))
 		} else {
-			h.RespondWithDatabaseError(w, "article", err)
+			h.RespondWithDatabaseError(w, fieldErrorArticle, err)
 		}
 		return
 	}
@@ -34,7 +34,7 @@ func (h *Handler) FavoriteArticle(w http.ResponseWriter, r *http.Request) {
 		UserID:    user.ID,
 	})
 	if err != nil {
-		h.RespondWithDatabaseError(w, "article", err)
+		h.RespondWithDatabaseError(w, fieldErrorArticle, err)
 		return
 	}
 
@@ -45,7 +45,7 @@ func (h *Handler) FavoriteArticle(w http.ResponseWriter, r *http.Request) {
 		FollowingID: article.AuthorID,
 	})
 	if err != nil {
-		h.RespondWithDatabaseError(w, "article", err)
+		h.RespondWithDatabaseError(w, fieldErrorArticle, err)
 		return
 	}
 
@@ -59,16 +59,16 @@ func (h *Handler) UnfavoriteArticle(w http.ResponseWriter, r *http.Request) {
 
 	user, ok := r.Context().Value(contextKeyUser).(database.User)
 	if !ok {
-		h.RespondWithError(w, 401, "body", "access denied", "missing user context")
+		h.RespondWithError(w, 401, fieldErrorArticle, "missing user context")
 		return
 	}
 
 	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 404, "body", "not found", fmt.Sprintf("UnfavoriteArticle request failed, no article found for slug %v", slug))
+			h.RespondWithError(w, 404, fieldErrorArticle, fmt.Sprintf("UnfavoriteArticle request failed, no article found for slug %v", slug))
 		} else {
-			h.RespondWithDatabaseError(w, "article", err)
+			h.RespondWithDatabaseError(w, fieldErrorArticle, err)
 		}
 		return
 	}
@@ -77,7 +77,7 @@ func (h *Handler) UnfavoriteArticle(w http.ResponseWriter, r *http.Request) {
 		ArticleID: article.ID,
 		UserID:    user.ID,
 	}); err != nil {
-		h.RespondWithDatabaseError(w, "article", err)
+		h.RespondWithDatabaseError(w, fieldErrorArticle, err)
 		return
 	}
 
@@ -88,7 +88,7 @@ func (h *Handler) UnfavoriteArticle(w http.ResponseWriter, r *http.Request) {
 		FollowingID: article.AuthorID,
 	})
 	if err != nil {
-		h.RespondWithDatabaseError(w, "article", err)
+		h.RespondWithDatabaseError(w, fieldErrorArticle, err)
 		return
 	}
 
