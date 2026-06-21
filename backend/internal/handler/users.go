@@ -20,7 +20,7 @@ type RegisterUserRequest struct {
 type RegisterUser struct {
 	Username string `json:"username" validate:"required"`
 	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
+	Password string `json:"password" validate:"required,min=8"`
 }
 
 type LoginUserRequest struct {
@@ -29,7 +29,7 @@ type LoginUserRequest struct {
 
 type LoginUser struct {
 	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
+	Password string `json:"password" validate:"required,min=8"`
 }
 
 type UpdateUserRequest struct {
@@ -85,9 +85,29 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userExists, err := h.DbQueries.DoesUsernameExist(r.Context(), userInfo.User.Username)
+	if err != nil {
+		h.RespondWithDatabaseError(w, fieldErrorUsername, err)
+		return
+	}
+	if userExists {
+		h.RespondWithError(w, 409, fieldErrorUsername, "username already taken")
+		return
+	}
+
+	emailExists, err := h.DbQueries.DoesEmailExist(r.Context(), userInfo.User.Email)
+	if err != nil {
+		h.RespondWithDatabaseError(w, fieldErrorEmail, err)
+		return
+	}
+	if emailExists {
+		h.RespondWithError(w, 409, fieldErrorEmail, "email already taken")
+		return
+	}
+
 	hashedPW, err := auth.HashPassword(userInfo.User.Password)
 	if err != nil {
-		h.RespondWithError(w, 500, "users", fmt.Sprintf("could not hash password: %v", err))
+		h.RespondWithError(w, 500, fieldErrorUser, fmt.Sprintf("could not hash password: %v", err))
 		return
 	}
 
@@ -97,7 +117,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		HashedPassword: hashedPW,
 	})
 	if err != nil {
-		h.RespondWithDatabaseError(w, "users", err)
+		h.RespondWithDatabaseError(w, fieldErrorUser, err)
 		return
 	}
 
@@ -148,7 +168,7 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, sql.ErrNoRows) {
 			h.RespondWithError(w, 401, fieldErrorUser, fmt.Sprintf("login attempt failed, no user found for email %v", userInfo.User.Email))
 		} else {
-			h.RespondWithDatabaseError(w, "users", err)
+			h.RespondWithDatabaseError(w, fieldErrorUser, err)
 		}
 		return
 	}
@@ -160,13 +180,13 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !matching {
-		h.RespondWithError(w, 401, fieldErrorUser, fmt.Sprintf("login attempt failed for user %v - wrong password", user.ID))
+		h.RespondWithError(w, 401, fieldErrorPassword, fmt.Sprintf("login attempt failed for user %v - wrong password", user.ID))
 		return
 	}
 
 	token, err := h.Auth.MakeJWT(user.ID, JWTExpiresIn)
 	if err != nil {
-		h.RespondWithError(w, 500, "users", fmt.Sprintf("user %v logged in successfully, but could not create session: %v", user.ID, err))
+		h.RespondWithError(w, 500, fieldErrorUser, fmt.Sprintf("user %v logged in successfully, but could not create session: %v", user.ID, err))
 		return
 	}
 
@@ -193,7 +213,7 @@ func (h *Handler) CurrentUser(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, sql.ErrNoRows) {
 			h.RespondWithError(w, 401, fieldErrorUser, fmt.Sprintf("CurrentUser request failed, no user found for id %v", userID))
 		} else {
-			h.RespondWithDatabaseError(w, "users", err)
+			h.RespondWithDatabaseError(w, fieldErrorUser, err)
 		}
 		return
 	}
@@ -242,7 +262,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if userInfo.User.Password != "" {
 		hashPW, err := auth.HashPassword(userInfo.User.Password)
 		if err != nil {
-			h.RespondWithError(w, 500, "users", err.Error())
+			h.RespondWithError(w, 500, fieldErrorUser, err.Error())
 			return
 		}
 		updateInfo.HashedPassword = stringToNullString(hashPW)
@@ -251,7 +271,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if userInfo.User.Bio != nil && *userInfo.User.Bio == "" {
 		_, err := h.DbQueries.ClearUserBio(r.Context(), userID)
 		if err != nil {
-			h.RespondWithDatabaseError(w, "users", err)
+			h.RespondWithDatabaseError(w, fieldErrorUser, err)
 			return
 		}
 	} else {
@@ -261,7 +281,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if userInfo.User.Image != nil && *userInfo.User.Image == "" {
 		_, err := h.DbQueries.ClearUserImage(r.Context(), userID)
 		if err != nil {
-			h.RespondWithDatabaseError(w, "users", err)
+			h.RespondWithDatabaseError(w, fieldErrorUser, err)
 			return
 		}
 	} else {
@@ -273,7 +293,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, sql.ErrNoRows) {
 			h.RespondWithError(w, 401, fieldErrorUser, fmt.Sprintf("UpdateUser request failed, no user found for id %v", userID))
 		} else {
-			h.RespondWithDatabaseError(w, "users", err)
+			h.RespondWithDatabaseError(w, fieldErrorUser, err)
 		}
 		return
 	}
@@ -297,7 +317,7 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value(contextKeyUserID).(uuid.UUID)
 
 	if err := h.DbQueries.DeleteUserByID(r.Context(), userID); err != nil {
-		h.RespondWithDatabaseError(w, "users", err)
+		h.RespondWithDatabaseError(w, fieldErrorUser, err)
 		return
 	}
 

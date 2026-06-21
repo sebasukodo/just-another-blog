@@ -126,7 +126,13 @@ func (h *Handler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RespondWithJSON(w, 201, buildArticleResponse(addFavCountAndTagsToDbArticle(article, 0, articleInfo.Article.TagList), false, false))
+	fullArticle, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
+	if err != nil {
+		h.RespondWithDatabaseError(w, fieldErrorArticle, err)
+		return
+	}
+
+	h.RespondWithJSON(w, 201, buildArticleResponse(fullArticle, false, false))
 
 }
 
@@ -236,19 +242,19 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedArticle, err := h.DbQueries.UpdateArticleBySlug(r.Context(), updateInfo)
+	_, err = h.DbQueries.UpdateArticleBySlug(r.Context(), updateInfo)
 	if err != nil {
 		h.RespondWithDatabaseError(w, fieldErrorArticle, err)
 		return
 	}
 
-	favCount, err := h.DbQueries.CountFavorites(context.Background(), updatedArticle.ID)
+	fullArticle, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
 	if err != nil {
 		h.RespondWithDatabaseError(w, fieldErrorArticle, err)
 		return
 	}
 
-	h.RespondWithJSON(w, 200, buildArticleResponse(addFavCountAndTagsToDbArticle(updatedArticle, favCount, article.Tags), false, false))
+	h.RespondWithJSON(w, 200, buildArticleResponse(fullArticle, false, false))
 
 }
 
@@ -493,21 +499,6 @@ func getListArticlesQueries(r *http.Request) (uint64, uint64, error) {
 	// #nosec G115 -- strconv.ParseInt(..., 10, 32) limits the value to int32 range and
 	// non-negative validation guarantees safe conversion to uint64
 	return uint64(limit), uint64(offset), err
-}
-
-func addFavCountAndTagsToDbArticle(article database.Article, favCount int64, tags []string) database.GetArticleBySlugRow {
-	return database.GetArticleBySlugRow{
-		ID:            article.ID,
-		CreatedAt:     article.CreatedAt,
-		UpdatedAt:     article.UpdatedAt,
-		AuthorID:      article.AuthorID,
-		Slug:          article.Slug,
-		Title:         article.Title,
-		Description:   article.Description,
-		Body:          article.Body,
-		Tags:          tags,
-		FavoriteCount: favCount,
-	}
 }
 
 func applyArticleFiltersToQuery(queryBuilder sq.SelectBuilder, r *http.Request) sq.SelectBuilder {

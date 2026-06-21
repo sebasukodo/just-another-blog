@@ -14,11 +14,14 @@ import (
 )
 
 const (
-	fieldErrorArticle string = "article"
-	fieldErrorComment string = "comment"
-	fieldErrorProfile string = "profile"
-	fieldErrorUser    string = "user"
-	fieldErrorToken   string = "token"
+	fieldErrorArticle  string = "article"
+	fieldErrorComment  string = "comment"
+	fieldErrorProfile  string = "profile"
+	fieldErrorUser     string = "user"
+	fieldErrorUsername string = "username"
+	fieldErrorEmail    string = "email"
+	fieldErrorPassword string = "credentials"
+	fieldErrorToken    string = "token"
 )
 
 func (h *Handler) RespondWithError(w http.ResponseWriter, code int, field, logMsg string) {
@@ -29,9 +32,12 @@ func (h *Handler) RespondWithError(w http.ResponseWriter, code int, field, logMs
 	case 400:
 		errMsg = "can't be empty"
 	case 401:
-		if field == fieldErrorToken {
+		switch field {
+		case fieldErrorToken:
 			errMsg = "is missing"
-		} else {
+		case fieldErrorPassword:
+			errMsg = "invalid"
+		default:
 			errMsg = "not authorized"
 		}
 	case 403:
@@ -39,8 +45,7 @@ func (h *Handler) RespondWithError(w http.ResponseWriter, code int, field, logMs
 	case 404:
 		errMsg = "not found"
 	case 409:
-		if field == fieldErrorUser {
-			field = "username"
+		if field == fieldErrorUsername || field == fieldErrorEmail {
 			errMsg = "has already been taken"
 		} else {
 			errMsg = "already exists"
@@ -106,7 +111,7 @@ func (h *Handler) RespondWithDatabaseError(w http.ResponseWriter, field string, 
 	h.RespondWithError(w, 500, field, fmt.Sprintf("database error occured but could not catch specific pqErr: %v", err))
 }
 
-func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	data, err := json.Marshal(payload)
