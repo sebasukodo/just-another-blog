@@ -112,6 +112,36 @@ func (q *Queries) DeleteUserByID(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const doesEmailExist = `-- name: DoesEmailExist :one
+SELECT EXISTS (
+    SELECT 1
+    FROM users
+    WHERE email = $1
+)
+`
+
+func (q *Queries) DoesEmailExist(ctx context.Context, email string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, doesEmailExist, email)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const doesUsernameExist = `-- name: DoesUsernameExist :one
+SELECT EXISTS (
+    SELECT 1
+    FROM users
+    WHERE username = $1
+)
+`
+
+func (q *Queries) DoesUsernameExist(ctx context.Context, username string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, doesUsernameExist, username)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, created_at, updated_at, username, email, hashed_password, bio, image FROM users
 WHERE email = $1

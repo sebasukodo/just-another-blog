@@ -14,11 +14,11 @@ import (
 )
 
 type AddCommentRequest struct {
-	Comment AddComment `json:"comment"`
+	Comment AddComment `json:"comment" validate:"required"`
 }
 
 type AddComment struct {
-	Body string `json:"body"`
+	Body string `json:"body" validate:"required"`
 }
 
 type RespondComment struct {
@@ -30,35 +30,40 @@ type RespondComments struct {
 }
 
 type Comment struct {
-	Id        int64          `json:"id"`
-	CreatedAt time.Time      `json:"createdAt"`
-	UpdatedAt time.Time      `json:"updatedAt"`
-	Body      string         `json:"body"`
-	Author    RespondProfile `json:"author"`
+	Id        int64     `json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	Body      string    `json:"body"`
+	Author    Author    `json:"author"`
 }
 
 func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 
 	slug := r.PathValue("slug")
 
-	user, ok := r.Context().Value(contextKeyUser).(database.User)
-	if !ok {
-		h.RespondWithError(w, 401, "access denied", "missing user context")
-		return
-	}
-
 	decoder := json.NewDecoder(r.Body)
 
 	commentInfo := AddCommentRequest{}
 
 	if err := decoder.Decode(&commentInfo); err != nil {
-		h.RespondWithError(w, 400, "invalid request body", err.Error())
+		h.RespondWithError(w, 422, fieldErrorComment, err.Error())
+		return
+	}
+
+	if err := h.Validate.Struct(commentInfo); err != nil {
+		h.RespondWithValidationErrors(w, err, "validation failed for creating comment")
+		return
+	}
+
+	user, ok := r.Context().Value(contextKeyUser).(database.User)
+	if !ok {
+		h.RespondWithError(w, 401, fieldErrorComment, "missing user context")
 		return
 	}
 
 	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, fieldErrorComment, err)
 		return
 	}
 
@@ -68,13 +73,13 @@ func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 		Body:      commentInfo.Comment.Body,
 	})
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, fieldErrorComment, err)
 		return
 	}
 
 	articleAuthor, err := h.DbQueries.GetUserByID(r.Context(), article.AuthorID)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, fieldErrorComment, err)
 		return
 	}
 
@@ -83,7 +88,7 @@ func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 		FollowingID: articleAuthor.ID,
 	})
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, fieldErrorComment, err)
 		return
 	}
 
@@ -93,7 +98,7 @@ func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
 			CreatedAt: comment.CreatedAt,
 			UpdatedAt: comment.UpdatedAt,
 			Body:      comment.Body,
-			Author:    buildProfileResponse(user, following),
+			Author:    buildAuthorResponse(user, following),
 		},
 	}
 
@@ -107,7 +112,7 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 
 	article, err := h.DbQueries.GetArticleBySlug(r.Context(), slug)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, fieldErrorComment, err)
 		return
 	}
 
@@ -121,7 +126,7 @@ func (h *Handler) GetComments(w http.ResponseWriter, r *http.Request) {
 		FollowerID: userID,
 	})
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, fieldErrorComment, err)
 		return
 	}
 
@@ -134,13 +139,13 @@ func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	commentIDString := r.PathValue("commentID")
 	commentID, err := strconv.ParseInt(commentIDString, 10, 64)
 	if err != nil {
-		h.RespondWithError(w, 400, "bad request", fmt.Sprintf("could not convert comment ID to int64: %v - %v", commentIDString, err))
+		h.RespondWithError(w, 400, fieldErrorComment, fmt.Sprintf("could not convert comment ID to int64: %v - %v", commentIDString, err))
 		return
 	}
 
 	user, ok := r.Context().Value(contextKeyUser).(database.User)
 	if !ok {
-		h.RespondWithError(w, 401, "access denied", "missing user context")
+		h.RespondWithError(w, 401, fieldErrorComment, "missing user context")
 		return
 	}
 
@@ -150,9 +155,9 @@ func (h *Handler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			h.RespondWithError(w, 403, "forbidden", fmt.Sprintf("could not delete comment %v - not author or not found", commentID))
+			h.RespondWithError(w, 403, fieldErrorComment, fmt.Sprintf("could not delete comment %v - not author or not found", commentID))
 		} else {
-			h.RespondWithDatabaseError(w, err)
+			h.RespondWithDatabaseError(w, fieldErrorComment, err)
 		}
 		return
 	}

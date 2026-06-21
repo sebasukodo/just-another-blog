@@ -11,11 +11,15 @@ type RespondProfile struct {
 	Profile Profile `json:"profile"`
 }
 
+type RespondAuthor struct {
+	Profile Profile `json:"author"`
+}
+
 type Profile struct {
-	Username  string `json:"username"`
-	Bio       string `json:"bio"`
-	Image     string `json:"image"`
-	Following bool   `json:"following"`
+	Username  string  `json:"username"`
+	Bio       *string `json:"bio"`
+	Image     *string `json:"image"`
+	Following bool    `json:"following"`
 }
 
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
@@ -23,7 +27,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
 	user, err := h.DbQueries.GetUserByUsername(r.Context(), username)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "profile", err)
 		return
 	}
 
@@ -38,7 +42,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		FollowingID: user.ID,
 	})
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "profile", err)
 		return
 	}
 
@@ -51,18 +55,18 @@ func (h *Handler) FollowUser(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
 	toFollowUser, err := h.DbQueries.GetUserByUsername(r.Context(), username)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "profile", err)
 		return
 	}
 
 	user, ok := r.Context().Value(contextKeyUser).(database.User)
 	if !ok {
-		h.RespondWithError(w, 401, "access denied", "missing user context")
+		h.RespondWithError(w, 401, fieldErrorUser, "missing user context")
 		return
 	}
 
 	if user.ID == toFollowUser.ID {
-		h.RespondWithError(w, 400, "cannot follow yourself", fmt.Sprintf("user %v cannot follow himself", user.ID))
+		h.RespondWithError(w, 400, fieldErrorUser, fmt.Sprintf("user %v cannot follow himself", user.ID))
 		return
 	}
 
@@ -70,7 +74,7 @@ func (h *Handler) FollowUser(w http.ResponseWriter, r *http.Request) {
 		FollowerID:  user.ID,
 		FollowingID: toFollowUser.ID,
 	}); err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "profile", err)
 		return
 	}
 
@@ -83,13 +87,13 @@ func (h *Handler) UnfollowUser(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
 	toFollowUser, err := h.DbQueries.GetUserByUsername(r.Context(), username)
 	if err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "profile", err)
 		return
 	}
 
 	user, ok := r.Context().Value(contextKeyUser).(database.User)
 	if !ok {
-		h.RespondWithError(w, 401, "access denied", "missing user context")
+		h.RespondWithError(w, 401, fieldErrorUser, "missing user context")
 		return
 	}
 
@@ -97,7 +101,7 @@ func (h *Handler) UnfollowUser(w http.ResponseWriter, r *http.Request) {
 		FollowerID:  user.ID,
 		FollowingID: toFollowUser.ID,
 	}); err != nil {
-		h.RespondWithDatabaseError(w, err)
+		h.RespondWithDatabaseError(w, "profile", err)
 		return
 	}
 
