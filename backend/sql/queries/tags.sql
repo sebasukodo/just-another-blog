@@ -17,5 +17,9 @@ VALUES(
 )
 RETURNING *;
 
+-- name: DeleteArticleTagsByArticleID :exec
+DELETE FROM article_tags
+WHERE article_id = $1;
+
 -- name: GetTags :many
 SELECT name FROM tags;

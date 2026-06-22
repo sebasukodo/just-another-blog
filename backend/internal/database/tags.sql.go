@@ -54,6 +54,16 @@ func (q *Queries) CreateTags(ctx context.Context, name string) (Tag, error) {
 	return i, err
 }
 
+const deleteArticleTagsByArticleID = `-- name: DeleteArticleTagsByArticleID :exec
+DELETE FROM article_tags
+WHERE article_id = $1
+`
+
+func (q *Queries) DeleteArticleTagsByArticleID(ctx context.Context, articleID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteArticleTagsByArticleID, articleID)
+	return err
+}
+
 const getTags = `-- name: GetTags :many
 SELECT name FROM tags
 `

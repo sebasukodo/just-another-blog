@@ -28,7 +28,14 @@ func (h *Handler) GetTags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) saveTagsToDatabase(r *http.Request, articleID int64, tags []string) error {
+	noDuplication := make(map[string]struct{})
+
 	for _, tag := range tags {
+		if _, ok := noDuplication[tag]; ok {
+			continue
+		}
+		noDuplication[tag] = struct{}{}
+
 		newTag, err := h.DbQueries.CreateTags(r.Context(), strings.ToLower(tag))
 		if err != nil {
 			return err

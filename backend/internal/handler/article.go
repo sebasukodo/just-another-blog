@@ -35,9 +35,10 @@ type UpdateArticleRequest struct {
 }
 
 type UpdateArticle struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Body        string `json:"body"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Body        string   `json:"body"`
+	TagList     []string `json:"tagList"`
 }
 
 type RespondArticle struct {
@@ -236,14 +237,65 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		updateInfo.Description = stringToNullString(articleInfo.Article.Description)
 		noUpdate = false
 	}
+	updateTags := articleInfo.Article.TagList != nil
+	if updateTags {
+		noUpdate = false
+	}
 
 	if noUpdate {
 		h.RespondWithJSON(w, 200, buildArticleResponse(article, false, false))
 		return
 	}
 
-	_, err = h.DbQueries.UpdateArticleBySlug(r.Context(), updateInfo)
+	// starting transaction
+	tx, err := h.Db.BeginTx(r.Context(), nil)
 	if err != nil {
+		h.RespondWithDatabaseError(w, fieldErrorArticle, err)
+		return
+	}
+	defer tx.Rollback()
+	qtx := h.DbQueries.WithTx(tx)
+
+	contentChanged := updateInfo.Title.Valid || updateInfo.Body.Valid || updateInfo.Description.Valid
+	if contentChanged {
+		_, err = qtx.UpdateArticleBySlug(r.Context(), updateInfo)
+		if err != nil {
+			h.RespondWithDatabaseError(w, fieldErrorArticle, err)
+			return
+		}
+	}
+
+	if updateTags {
+		if err := qtx.DeleteArticleTagsByArticleID(r.Context(), article.ID); err != nil {
+			h.RespondWithDatabaseError(w, fieldErrorArticle, err)
+			return
+		}
+
+		noDuplication := make(map[string]struct{})
+		for _, tagName := range articleInfo.Article.TagList {
+			if _, ok := noDuplication[tagName]; ok {
+				continue
+			}
+			noDuplication[tagName] = struct{}{}
+
+			tag, err := qtx.CreateTags(r.Context(), tagName)
+			if err != nil {
+				h.RespondWithDatabaseError(w, fieldErrorArticle, err)
+				return
+			}
+			_, err = qtx.CreateArticleTags(r.Context(), database.CreateArticleTagsParams{
+				ArticleID: article.ID,
+				TagID:     tag.ID,
+			})
+			if err != nil {
+				h.RespondWithDatabaseError(w, fieldErrorArticle, err)
+				return
+			}
+		}
+	}
+
+	// commit transaction
+	if err := tx.Commit(); err != nil {
 		h.RespondWithDatabaseError(w, fieldErrorArticle, err)
 		return
 	}
