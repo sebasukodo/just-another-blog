@@ -112,6 +112,18 @@ func (q *Queries) GetFollowersOfAUser(ctx context.Context, followingID uuid.UUID
 	return items, nil
 }
 
+const getUserFollowCount = `-- name: GetUserFollowCount :one
+SELECT COUNT(*) FROM user_follows
+WHERE follower_id = $1
+`
+
+func (q *Queries) GetUserFollowCount(ctx context.Context, followerID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getUserFollowCount, followerID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const isFollowing = `-- name: IsFollowing :one
 SELECT EXISTS (
     SELECT 1

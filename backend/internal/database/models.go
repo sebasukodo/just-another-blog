@@ -31,6 +31,12 @@ type ArticleComment struct {
 	Body      string
 }
 
+type ArticleFavorite struct {
+	ArticleID int64
+	UserID    uuid.UUID
+	CreatedAt time.Time
+}
+
 type ArticleTag struct {
 	ArticleID int64
 	TagID     int64

@@ -20,6 +20,20 @@ SET username = COALESCE(sqlc.narg('username'), username),
 WHERE id = sqlc.arg('id')
 RETURNING *;
 
+-- name: DoesUsernameExist :one
+SELECT EXISTS (
+    SELECT 1
+    FROM users
+    WHERE username = $1
+);
+
+-- name: DoesEmailExist :one
+SELECT EXISTS (
+    SELECT 1
+    FROM users
+    WHERE email = $1
+);
+
 -- name: ClearUserBio :one
 UPDATE users
 SET bio = NULL,

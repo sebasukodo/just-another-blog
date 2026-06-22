@@ -67,7 +67,22 @@ func (q *Queries) DeleteArticleById(ctx context.Context, id int64) error {
 }
 
 const feedArticles = `-- name: FeedArticles :many
-SELECT a.id, a.created_at, a.updated_at, a.author_id, a.slug, a.title, a.description, a.body, u.username, u.bio, u.image, array_agg(t.name ORDER BY t.name)::text[] AS tags
+SELECT
+    a.id, a.created_at, a.updated_at, a.author_id, a.slug, a.title, a.description, a.body,
+    u.username,
+    u.bio,
+    u.image,
+    array_agg(t.name ORDER BY t.name) FILTER (WHERE t.name IS NOT NULL)::text[] AS tags,
+    (SELECT COUNT(*)
+     FROM article_favorites af
+     WHERE af.article_id = a.id
+    ) AS favorites_count,
+    EXISTS (
+        SELECT 1
+        FROM article_favorites af2
+        WHERE af2.article_id = a.id
+          AND af2.user_id = $1
+    ) AS is_favorited
 FROM articles a
 JOIN users u
 ON a.author_id = u.id
@@ -84,28 +99,30 @@ OFFSET $3
 `
 
 type FeedArticlesParams struct {
-	FollowerID uuid.UUID
-	Limit      int32
-	Offset     int32
+	UserID uuid.UUID
+	Limit  int32
+	Offset int32
 }
 
 type FeedArticlesRow struct {
-	ID          int64
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	AuthorID    uuid.UUID
-	Slug        string
-	Title       string
-	Description string
-	Body        string
-	Username    string
-	Bio         sql.NullString
-	Image       sql.NullString
-	Tags        []string
+	ID             int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	AuthorID       uuid.UUID
+	Slug           string
+	Title          string
+	Description    string
+	Body           string
+	Username       string
+	Bio            sql.NullString
+	Image          sql.NullString
+	Tags           []string
+	FavoritesCount int64
+	IsFavorited    bool
 }
 
 func (q *Queries) FeedArticles(ctx context.Context, arg FeedArticlesParams) ([]FeedArticlesRow, error) {
-	rows, err := q.db.QueryContext(ctx, feedArticles, arg.FollowerID, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, feedArticles, arg.UserID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -126,6 +143,8 @@ func (q *Queries) FeedArticles(ctx context.Context, arg FeedArticlesParams) ([]F
 			&i.Bio,
 			&i.Image,
 			pq.Array(&i.Tags),
+			&i.FavoritesCount,
+			&i.IsFavorited,
 		); err != nil {
 			return nil, err
 		}
@@ -141,12 +160,45 @@ func (q *Queries) FeedArticles(ctx context.Context, arg FeedArticlesParams) ([]F
 }
 
 const getArticleBySlug = `-- name: GetArticleBySlug :one
-SELECT id, created_at, updated_at, author_id, slug, title, description, body FROM articles WHERE slug = $1
+SELECT
+    a.id, a.created_at, a.updated_at, a.author_id, a.slug, a.title, a.description, a.body,
+    author.username,
+    author.bio,
+    author.image,
+    array_agg(t.name ORDER BY t.name) FILTER (WHERE t.name IS NOT NULL)::text[] AS tags,
+    (SELECT COUNT(*)
+     FROM article_favorites af
+     WHERE af.article_id = a.id
+    ) AS favorite_count
+FROM articles a
+JOIN users author ON author.id = a.author_id
+LEFT JOIN article_tags at
+ON at.article_id = a.id
+LEFT JOIN tags t
+ON t.id = at.tag_id
+WHERE a.slug = $1
+GROUP BY a.id, author.username, author.bio, author.image
 `
 
-func (q *Queries) GetArticleBySlug(ctx context.Context, slug string) (Article, error) {
+type GetArticleBySlugRow struct {
+	ID            int64
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	AuthorID      uuid.UUID
+	Slug          string
+	Title         string
+	Description   string
+	Body          string
+	Username      string
+	Bio           sql.NullString
+	Image         sql.NullString
+	Tags          []string
+	FavoriteCount int64
+}
+
+func (q *Queries) GetArticleBySlug(ctx context.Context, slug string) (GetArticleBySlugRow, error) {
 	row := q.db.QueryRowContext(ctx, getArticleBySlug, slug)
-	var i Article
+	var i GetArticleBySlugRow
 	err := row.Scan(
 		&i.ID,
 		&i.CreatedAt,
@@ -156,6 +208,11 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, slug string) (Article, e
 		&i.Title,
 		&i.Description,
 		&i.Body,
+		&i.Username,
+		&i.Bio,
+		&i.Image,
+		pq.Array(&i.Tags),
+		&i.FavoriteCount,
 	)
 	return i, err
 }
@@ -199,6 +256,38 @@ func (q *Queries) GetArticleTagsByArticleID(ctx context.Context, id int64) ([]st
 		return nil, err
 	}
 	return items, nil
+}
+
+const getArticlesCount = `-- name: GetArticlesCount :one
+SELECT COUNT(*)
+FROM articles
+`
+
+func (q *Queries) GetArticlesCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getArticlesCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getArticlesFeedCount = `-- name: GetArticlesFeedCount :one
+SELECT COUNT(*)
+FROM articles a
+JOIN users u
+ON a.author_id = u.id
+JOIN user_follows uf
+ON uf.follower_id = $1 AND uf.following_id = a.author_id
+LEFT JOIN article_tags at
+ON at.article_id = a.id
+LEFT JOIN tags t
+ON t.id = at.tag_id
+`
+
+func (q *Queries) GetArticlesFeedCount(ctx context.Context, followerID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getArticlesFeedCount, followerID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const updateArticleBySlug = `-- name: UpdateArticleBySlug :one

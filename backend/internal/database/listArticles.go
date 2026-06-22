@@ -21,6 +21,8 @@ type ListArticle struct {
 	AuthorImage      sql.NullString
 	Tags             []string
 	AuthorIsFollowed bool
+	IsFavorited      bool
+	FavoritesCount   int64
 }
 
 func ScanListArticles(rows *sql.Rows) ([]ListArticle, error) {
@@ -42,6 +44,8 @@ func ScanListArticles(rows *sql.Rows) ([]ListArticle, error) {
 			&la.AuthorImage,
 			pq.Array(&la.Tags),
 			&la.AuthorIsFollowed,
+			&la.IsFavorited,
+			&la.FavoritesCount,
 		)
 		if err != nil {
 			return nil, err

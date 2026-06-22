@@ -6,45 +6,90 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/lib/pq"
 	"github.com/sebasukodo/just-another-blog/backend/internal/database"
 )
 
-type returnError struct {
-	Error Error `json:"error"`
-}
+const (
+	fieldErrorArticle  string = "article"
+	fieldErrorComment  string = "comment"
+	fieldErrorProfile  string = "profile"
+	fieldErrorUser     string = "user"
+	fieldErrorUsername string = "username"
+	fieldErrorEmail    string = "email"
+	fieldErrorPassword string = "credentials"
+	fieldErrorToken    string = "token"
+)
 
-type Error struct {
-	Body string `json:"body"`
-	Code int    `json:"code"`
-}
-
-type DBError struct {
-	Code       int
-	Message    string
-	LogMessage string
-}
-
-func (h *Handler) RespondWithError(w http.ResponseWriter, code int, errorMsg, logMsg string) {
-
+func (h *Handler) RespondWithError(w http.ResponseWriter, code int, field, logMsg string) {
 	h.Logger.Error(logMsg)
 
-	respBody := returnError{
-		Error: Error{
-			Body: errorMsg,
-			Code: code,
+	errMsg := ""
+	switch code {
+	case 400:
+		errMsg = "can't be empty"
+	case 401:
+		switch field {
+		case fieldErrorToken:
+			errMsg = "is missing"
+		case fieldErrorPassword:
+			errMsg = "invalid"
+		default:
+			errMsg = "not authorized"
+		}
+	case 403:
+		errMsg = "forbidden"
+	case 404:
+		errMsg = "not found"
+	case 409:
+		if field == fieldErrorUsername || field == fieldErrorEmail {
+			errMsg = "has already been taken"
+		} else {
+			errMsg = "already exists"
+		}
+	case 422:
+		errMsg = "unprocessable entity"
+	case 500:
+		errMsg = "internal server error"
+	default:
+		errMsg = "some error occured"
+	}
+
+	respBody := GenericErrorModel{
+		Errors: map[string][]string{
+			field: {errMsg},
 		},
 	}
 
 	h.RespondWithJSON(w, code, respBody)
-
 }
 
-func (h *Handler) RespondWithDatabaseError(w http.ResponseWriter, err error) {
+func (h *Handler) RespondWithValidationErrors(w http.ResponseWriter, err error, logMsg string) {
+	h.Logger.Error(logMsg)
 
+	errorMap := make(map[string][]string)
+
+	var validationErrors validator.ValidationErrors
+	if errors.As(err, &validationErrors) {
+		for _, fieldError := range validationErrors {
+			field := lowerFirst(fieldError.Field())
+			msg := validationMessage(fieldError)
+			errorMap[field] = append(errorMap[field], msg)
+		}
+	} else {
+		errorMap["body"] = []string{err.Error()}
+	}
+
+	respBody := GenericErrorModel{Errors: errorMap}
+	h.RespondWithJSON(w, http.StatusUnprocessableEntity, respBody)
+}
+
+func (h *Handler) RespondWithDatabaseError(w http.ResponseWriter, field string, err error) {
 	if errors.Is(err, sql.ErrNoRows) {
-		h.RespondWithError(w, 404, "resource does not exists", fmt.Sprintf("resource not found: %v", err))
+		h.RespondWithError(w, 404, field, fmt.Sprintf("resource not found: %v", err))
 		return
 	}
 
@@ -52,20 +97,21 @@ func (h *Handler) RespondWithDatabaseError(w http.ResponseWriter, err error) {
 	if errors.As(err, &pqErr) {
 		switch pqErr.Code {
 		case "23505":
-			h.RespondWithError(w, 409, "resource already exists", fmt.Sprintf("database resource already exists: %v", err))
+			h.RespondWithError(w, 409, field, fmt.Sprintf("database resource already exists: %v", err))
 			return
 		case "23502":
-			h.RespondWithError(w, 400, "missing required field", fmt.Sprintf("missing required field for database request: %v", err))
+			h.RespondWithError(w, 400, field, fmt.Sprintf("missing required field for database request: %v", err))
 			return
 		default:
-			h.RespondWithError(w, 500, "internal server error", fmt.Sprintf("database error occured: %v", err))
+			h.RespondWithError(w, 500, field, fmt.Sprintf("database error occured: %v", err))
 			return
 		}
 	}
-	h.RespondWithError(w, 500, "internal server error", fmt.Sprintf("database error occured but could not catch specific pqErr: %v", err))
+
+	h.RespondWithError(w, 500, field, fmt.Sprintf("database error occured but could not catch specific pqErr: %v", err))
 }
 
-func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	data, err := json.Marshal(payload)
@@ -81,36 +127,42 @@ func (h *Handler) RespondWithJSON(w http.ResponseWriter, code int, payload inter
 	}
 }
 
-func buildArticleResponse(article database.Article, user database.User, tags []string, following bool) RespondArticle {
-	if tags == nil {
-		tags = []string{}
+func buildArticleResponse(article database.GetArticleBySlugRow, following, isFavorite bool) RespondArticle {
+
+	if article.Tags == nil {
+		article.Tags = []string{}
 	}
+
 	return RespondArticle{
 		Article: Article{
 			Slug:           article.Slug,
 			Title:          article.Title,
 			Description:    article.Description,
 			Body:           article.Body,
-			TagList:        tags,
+			TagList:        article.Tags,
 			CreatedAt:      article.CreatedAt,
 			UpdatedAt:      article.UpdatedAt,
-			Favorited:      false,
-			FavoritesCount: 0,
+			Favorited:      isFavorite,
+			FavoritesCount: article.FavoriteCount,
 			Author: Author{
-				Username:  user.Username,
-				Bio:       nullStringToStringPointer(user.Bio),
-				Image:     nullStringToStringPointer(user.Image),
+				Username:  article.Username,
+				Bio:       nullStringToStringPointer(article.Bio),
+				Image:     nullStringToStringPointer(article.Image),
 				Following: following,
 			},
 		},
 	}
 }
 
-func buildListArticlesResponse(articles []database.ListArticle) RespondArticles {
+func buildListArticlesResponse(articles []database.ListArticle, articleCount int64) RespondArticles {
 
 	response := []ArticleNoBody{}
 
 	for _, article := range articles {
+
+		if article.Tags == nil {
+			article.Tags = []string{}
+		}
 
 		response = append(response, ArticleNoBody{
 			Slug:           article.Slug,
@@ -119,12 +171,12 @@ func buildListArticlesResponse(articles []database.ListArticle) RespondArticles 
 			TagList:        article.Tags,
 			CreatedAt:      article.CreatedAt,
 			UpdatedAt:      article.UpdatedAt,
-			Favorited:      false,
-			FavoritesCount: 0,
+			Favorited:      article.IsFavorited,
+			FavoritesCount: article.FavoritesCount,
 			Author: Author{
 				Username:  article.AuthorUsername,
-				Bio:       &article.AuthorBio.String,
-				Image:     &article.AuthorImage.String,
+				Bio:       nullStringToStringPointer(article.AuthorBio),
+				Image:     nullStringToStringPointer(article.AuthorImage),
 				Following: article.AuthorIsFollowed,
 			},
 		})
@@ -132,15 +184,19 @@ func buildListArticlesResponse(articles []database.ListArticle) RespondArticles 
 
 	return RespondArticles{
 		Article:      response,
-		ArticleCount: len(articles),
+		ArticleCount: articleCount,
 	}
 }
 
-func buildArticleFeedResponse(feed []database.FeedArticlesRow) RespondArticles {
+func buildArticleFeedResponse(feed []database.FeedArticlesRow, feedCount int64) RespondArticles {
 
 	response := []ArticleNoBody{}
 
 	for _, article := range feed {
+
+		if article.Tags == nil {
+			article.Tags = []string{}
+		}
 
 		response = append(response, ArticleNoBody{
 			Slug:           article.Slug,
@@ -149,12 +205,12 @@ func buildArticleFeedResponse(feed []database.FeedArticlesRow) RespondArticles {
 			TagList:        article.Tags,
 			CreatedAt:      article.CreatedAt,
 			UpdatedAt:      article.UpdatedAt,
-			Favorited:      false,
-			FavoritesCount: 0,
+			Favorited:      article.IsFavorited,
+			FavoritesCount: article.FavoritesCount,
 			Author: Author{
 				Username:  article.Username,
-				Bio:       &article.Bio.String,
-				Image:     &article.Image.String,
+				Bio:       nullStringToStringPointer(article.Bio),
+				Image:     nullStringToStringPointer(article.Image),
 				Following: true,
 			},
 		})
@@ -162,7 +218,7 @@ func buildArticleFeedResponse(feed []database.FeedArticlesRow) RespondArticles {
 
 	return RespondArticles{
 		Article:      response,
-		ArticleCount: len(feed),
+		ArticleCount: feedCount,
 	}
 }
 
@@ -170,10 +226,19 @@ func buildProfileResponse(user database.User, following bool) RespondProfile {
 	return RespondProfile{
 		Profile: Profile{
 			Username:  user.Username,
-			Bio:       user.Bio.String,
-			Image:     user.Image.String,
+			Bio:       nullStringToStringPointer(user.Bio),
+			Image:     nullStringToStringPointer(user.Image),
 			Following: following,
 		},
+	}
+}
+
+func buildAuthorResponse(user database.User, following bool) Author {
+	return Author{
+		Username:  user.Username,
+		Bio:       nullStringToStringPointer(user.Bio),
+		Image:     nullStringToStringPointer(user.Image),
+		Following: following,
 	}
 }
 
@@ -185,15 +250,20 @@ func buildCommentsResponse(allComments []database.GetCommentsFromArticleRow) Res
 			CreatedAt: comment.CreatedAt,
 			UpdatedAt: comment.UpdatedAt,
 			Body:      comment.Body,
-			Author: RespondProfile{
-				Profile: Profile{
-					Username:  comment.Username,
-					Bio:       comment.Bio.String,
-					Image:     comment.Image.String,
-					Following: comment.AuthorIsFollowed,
-				},
+			Author: Author{
+				Username:  comment.Username,
+				Bio:       nullStringToStringPointer(comment.Bio),
+				Image:     nullStringToStringPointer(comment.Image),
+				Following: comment.AuthorIsFollowed,
 			},
 		})
 	}
 	return RespondComments{Comments: response}
+}
+
+func lowerFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToLower(s[:1]) + s[1:]
 }

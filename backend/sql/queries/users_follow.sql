@@ -19,6 +19,10 @@ SELECT EXISTS (
       AND following_id = $2
 );
 
+-- name: GetUserFollowCount :one
+SELECT COUNT(*) FROM user_follows
+WHERE follower_id = $1;
+
 -- name: GetFollowersOfAUser :many
 SELECT u.*
 FROM users u
