@@ -1,8 +1,16 @@
-# Just another Blogwebsite
+![Backend Tests](https://img.shields.io/badge/realworld%20hurl%20tests-passing-brightgreen)
+![status of ci](https://github.com/sebasukodo/just-another-blog/actions/workflows/ci.yml/badge.svg)
+
+# Just another Blog Website
 
 This project is a self-hostable fullstack blogging platform built with Go and React.
 
 The project is inspired by the excellent [RealWorld](https://github.com/realworld-apps/realworld) specification and aims to provide a clean, modern reference implementation for a real-world web application.
+
+## Project Status
+
+The backend is feature-complete and passes all [RealWorld hurl tests](https://github.com/realworld-apps/realworld/tree/main/specs/api).
+The frontend is not yet implemented.
 
 ## Quick Start
 To run the project locally, see [Run Development Server](#run-development-server).
