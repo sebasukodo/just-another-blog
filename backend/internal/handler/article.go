@@ -441,7 +441,6 @@ func (h *Handler) CountListArticles(w http.ResponseWriter, r *http.Request) (int
 	row := h.Db.QueryRowContext(r.Context(), sqlString, args...)
 	var count int64
 	err = row.Scan(&count)
-	fmt.Println(count)
 	return count, err
 }
 
@@ -456,6 +455,16 @@ func (h *Handler) FeedArticles(w http.ResponseWriter, r *http.Request) {
 	limit, offset, err := getFeedArticlesQueries(r)
 	if err != nil {
 		h.RespondWithError(w, 400, fieldErrorArticle, fmt.Sprintf("could not parse limit or offset query parameters to int: %v", err))
+		return
+	}
+
+	followCount, err := h.DbQueries.GetUserFollowCount(r.Context(), user.ID)
+	if err != nil {
+		h.RespondWithDatabaseError(w, fieldErrorArticle, err)
+		return
+	}
+	if followCount == 0 {
+		h.RespondWithJSON(w, 200, buildArticleFeedResponse(nil, 0))
 		return
 	}
 
