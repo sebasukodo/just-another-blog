@@ -37,11 +37,11 @@ type UpdateUserRequest struct {
 }
 
 type UpdateUser struct {
-	Username string  `json:"username"`
-	Email    string  `json:"email"`
-	Password string  `json:"password"`
-	Bio      *string `json:"bio"`
-	Image    *string `json:"image"`
+	Username string           `json:"username"`
+	Email    string           `json:"email"`
+	Password string           `json:"password"`
+	Bio      Nullable[string] `json:"bio"`
+	Image    Nullable[string] `json:"image"`
 }
 
 type RespondUser struct {
@@ -56,7 +56,13 @@ type User struct {
 	Image    *string `json:"image"`
 }
 
+type Nullable[T any] struct {
+	Set   bool
+	Value *T
+}
+
 const JWTExpiresIn = time.Duration(15) * time.Minute
+const minPasswordLength = 8
 
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
@@ -260,6 +266,10 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		updateInfo.Email = stringToNullString(userInfo.User.Email)
 	}
 	if userInfo.User.Password != "" {
+		if len(userInfo.User.Password) < minPasswordLength {
+			h.RespondWithError(w, 422, fieldErrorPassword, "password too short")
+		}
+
 		hashPW, err := auth.HashPassword(userInfo.User.Password)
 		if err != nil {
 			h.RespondWithError(w, 500, fieldErrorUser, err.Error())
@@ -268,24 +278,28 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		updateInfo.HashedPassword = stringToNullString(hashPW)
 	}
 
-	if userInfo.User.Bio != nil && *userInfo.User.Bio == "" {
-		_, err := h.DbQueries.ClearUserBio(r.Context(), userID)
-		if err != nil {
-			h.RespondWithDatabaseError(w, fieldErrorUser, err)
-			return
+	if userInfo.User.Bio.Set {
+		if userInfo.User.Bio.Value == nil || *userInfo.User.Bio.Value == "" {
+			_, err := h.DbQueries.ClearUserBio(r.Context(), userID)
+			if err != nil {
+				h.RespondWithDatabaseError(w, fieldErrorUser, err)
+				return
+			}
+		} else {
+			updateInfo.Bio = pointerStringToNullString(userInfo.User.Bio.Value)
 		}
-	} else {
-		updateInfo.Bio = pointerStringToNullString(userInfo.User.Bio)
 	}
 
-	if userInfo.User.Image != nil && *userInfo.User.Image == "" {
-		_, err := h.DbQueries.ClearUserImage(r.Context(), userID)
-		if err != nil {
-			h.RespondWithDatabaseError(w, fieldErrorUser, err)
-			return
+	if userInfo.User.Image.Set {
+		if userInfo.User.Image.Value == nil || *userInfo.User.Image.Value == "" {
+			_, err := h.DbQueries.ClearUserImage(r.Context(), userID)
+			if err != nil {
+				h.RespondWithDatabaseError(w, fieldErrorUser, err)
+				return
+			}
+		} else {
+			updateInfo.Image = pointerStringToNullString(userInfo.User.Image.Value)
 		}
-	} else {
-		updateInfo.Image = pointerStringToNullString(userInfo.User.Image)
 	}
 
 	user, err := h.DbQueries.UpdateUserByID(r.Context(), updateInfo)
@@ -343,5 +357,19 @@ func nullStringToStringPointer(text sql.NullString) *string {
 	if text.Valid {
 		return &text.String
 	}
+	return nil
+}
+
+func (n *Nullable[T]) UnmarshalJSON(data []byte) error {
+	n.Set = true
+	if string(data) == "null" {
+		n.Value = nil
+		return nil
+	}
+	var v T
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	n.Value = &v
 	return nil
 }
