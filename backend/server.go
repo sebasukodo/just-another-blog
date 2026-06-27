@@ -28,7 +28,7 @@ func newServer(h *handler.Handler, cancel context.CancelFunc) *server {
 
 	s.httpServer = &http.Server{
 		Addr:              fmt.Sprintf(":%v", serverPort),
-		Handler:           requestLogger(h.Logger)(mux),
+		Handler:           corsMiddleware(h.Config.FrontendHost)(requestLogger(h.Logger)(mux)),
 		ReadHeaderTimeout: 15 * time.Second,
 	}
 
@@ -87,6 +87,23 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			next.ServeHTTP(w, r)
 			logger.Info(fmt.Sprintf("served request: %s %s", r.Method, r.URL.Path))
+		})
+	}
+}
+
+func corsMiddleware(frontendUrl string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", frontendUrl)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			next.ServeHTTP(w, r)
 		})
 	}
 }
