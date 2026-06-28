@@ -1,10 +1,11 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/main";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getAPIEndpoint, isErrorResponse, stdErrorMsg } from "~/utils";
 import type { UserResponse } from "~/types/users";
 import type { GenericError } from "~/types/error";
 import { useNavigate } from "react-router";
+import { useAuth } from "~/context/auth";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -20,6 +21,14 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string[]> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const { user, login, isAuthLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isAuthLoading && user) {
+      navigate("/");
+    }
+  }, [isAuthLoading, user, navigate]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -39,7 +48,7 @@ export default function Login() {
         return;
       }
 
-      localStorage.setItem("token", data.user.token);
+      login(data.user);
       navigate("/");
     } catch (err) {
       setErrors({ general: [stdErrorMsg] });

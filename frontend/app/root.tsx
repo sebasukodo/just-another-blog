@@ -9,6 +9,7 @@ import {
 
 import type { Route } from "./+types/root";
 import "./styles.css";
+import { AuthProvider } from "./context/auth";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -40,5 +41,9 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export default function App() {
-  return <Outlet />;
+  return (
+    <AuthProvider>
+      <Outlet />
+    </AuthProvider>
+  );
 }
