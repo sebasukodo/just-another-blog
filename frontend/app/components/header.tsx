@@ -1,9 +1,13 @@
 import { Link } from "react-router";
 import { useAuth } from "~/context/auth";
 import defaultAvatar from "~/assets/default-avatar.svg";
+import { NavLink } from "react-router";
 
 export default function Header() {
   const { user } = useAuth();
+
+  const navLinkClass = "nav-link";
+  const activeClass = navLinkClass + " active";
 
   const header =
     user != null ? (
@@ -14,30 +18,50 @@ export default function Header() {
           </Link>
           <ul className="nav navbar-nav pull-xs-right">
             <li className="nav-item">
-              <Link className="nav-link active" to="/">
+              <NavLink
+                className={({ isActive }) =>
+                  isActive ? activeClass : navLinkClass
+                }
+                to="/"
+              >
                 Home
-              </Link>
+              </NavLink>
             </li>
             <li className="nav-item">
-              <Link className="nav-link" to="/editor">
+              <NavLink
+                className={({ isActive }) =>
+                  isActive ? activeClass : navLinkClass
+                }
+                to="/editor"
+              >
                 {" "}
                 <i className="ion-compose"></i>&nbsp;New Article{" "}
-              </Link>
+              </NavLink>
             </li>
             <li className="nav-item">
-              <Link className="nav-link" to="/settings">
+              <NavLink
+                className={({ isActive }) =>
+                  isActive ? activeClass : navLinkClass
+                }
+                to="/settings"
+              >
                 {" "}
                 <i className="ion-gear-a"></i>&nbsp;Settings{" "}
-              </Link>
+              </NavLink>
             </li>
             <li className="nav-item">
-              <Link className="nav-link" to={`/profile/${user.username}`}>
+              <NavLink
+                className={({ isActive }) =>
+                  isActive ? activeClass : navLinkClass
+                }
+                to={`/profile/${user.username}`}
+              >
                 <img
                   src={user.image != null ? user.image : defaultAvatar}
                   className="user-pic"
                 />
                 {user.username}
-              </Link>
+              </NavLink>
             </li>
           </ul>
         </div>
@@ -50,19 +74,34 @@ export default function Header() {
           </Link>
           <ul className="nav navbar-nav pull-xs-right">
             <li className="nav-item">
-              <Link className="nav-link active" to="/">
+              <NavLink
+                className={({ isActive }) =>
+                  isActive ? activeClass : navLinkClass
+                }
+                to="/"
+              >
                 Home
-              </Link>
+              </NavLink>
             </li>
             <li className="nav-item">
-              <Link className="nav-link" to="/login">
+              <NavLink
+                className={({ isActive }) =>
+                  isActive ? activeClass : navLinkClass
+                }
+                to="/login"
+              >
                 Sign in
-              </Link>
+              </NavLink>
             </li>
             <li className="nav-item">
-              <Link className="nav-link" to="/register">
+              <NavLink
+                className={({ isActive }) =>
+                  isActive ? activeClass : navLinkClass
+                }
+                to="/register"
+              >
                 Sign up
-              </Link>
+              </NavLink>
             </li>
           </ul>
         </div>
