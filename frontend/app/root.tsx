@@ -10,6 +10,8 @@ import {
 import type { Route } from "./+types/root";
 import "./styles.css";
 import { AuthProvider } from "./context/auth";
+import Header from "./components/header";
+import Footer from "./components/footer";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -43,7 +45,9 @@ export const links: Route.LinksFunction = () => [
 export default function App() {
   return (
     <AuthProvider>
+      <Header />
       <Outlet />
+      <Footer />
     </AuthProvider>
   );
 }
