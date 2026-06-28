@@ -8,30 +8,33 @@ import { useNavigate } from "react-router";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Login" },
-    { name: "description", content: "login page to access personal content" },
+    { title: "Register" },
+    { name: "description", content: "user registration page" },
   ];
 }
 
-export default function Login() {
+export default function register() {
   const navigate = useNavigate();
 
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string[]> | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormEvent>) {
     e.preventDefault();
-    setIsLoading(true);
     setErrors(null);
+    setIsLoading(false);
 
     try {
-      const res = await fetch(getAPIEndpoint("/users/login"), {
+      const res = await fetch(getAPIEndpoint("users"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user: { email, password } }),
+        body: JSON.stringify({ user: { username, email, password } }),
       });
+
       const data: UserResponse | GenericError = await res.json();
 
       if (!res.ok || isErrorResponse(data)) {
@@ -53,12 +56,14 @@ export default function Login() {
       <div className="container page">
         <div className="row">
           <div className="col-md-6 offset-md-3 col-xs-12">
-            <h1 className="text-xs-center">Sign in</h1>
+            <h1 className="text-xs-center">Sign up</h1>
             <p className="text-xs-center">
-              <Link to="/register">Need an account?</Link>
+              <Link to="/login">Have an account?</Link>
             </p>
 
-            {isLoading && <p className="text-xs-center">trying to login...</p>}
+            {isLoading && (
+              <p className="text-xs-center">trying to register...</p>
+            )}
 
             {errors && (
               <ul className="error-messages">
@@ -73,6 +78,15 @@ export default function Login() {
             )}
 
             <form onSubmit={handleSubmit}>
+              <fieldset className="form-group">
+                <input
+                  className="form-control form-control-lg"
+                  type="text"
+                  placeholder="Username"
+                  name="username"
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </fieldset>
               <fieldset className="form-group">
                 <input
                   className="form-control form-control-lg"
@@ -95,7 +109,7 @@ export default function Login() {
                 type="submit"
                 className="btn btn-lg btn-primary pull-xs-right"
               >
-                Sign in
+                Sign up
               </button>
             </form>
           </div>

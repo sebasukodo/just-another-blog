@@ -13,3 +13,5 @@ export function isErrorResponse(
 ): data is GenericError {
   return "errors" in data;
 }
+
+export const stdErrorMsg = "network error, please try again.";
