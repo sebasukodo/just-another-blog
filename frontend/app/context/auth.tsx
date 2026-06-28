@@ -1,13 +1,17 @@
 import { useContext, useEffect, useState, type ReactNode } from "react";
 import { createContext } from "react";
+import { useNavigate } from "react-router";
+import { Navigate } from "react-router";
 import type { AuthContextType } from "~/types/context";
 import type { GenericError } from "~/types/error";
-import type { User, UserResponse } from "~/types/users";
+import type { User, UserResponse, UserUpdate } from "~/types/users";
 import { getAPIEndpoint, isErrorResponse } from "~/utils";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
+
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
@@ -52,10 +56,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout() {
     localStorage.removeItem("token");
     setUser(null);
+    navigate("/");
+  }
+
+  function updateUser(updatedFields: UserUpdate) {
+    setUser((currentUser) => {
+      if (!updatedFields) return currentUser;
+      return { ...currentUser, ...updatedFields } as User;
+    });
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthLoading }}>
+    <AuthContext.Provider
+      value={{ user, login, logout, updateUser, isAuthLoading }}
+    >
       {children}
     </AuthContext.Provider>
   );

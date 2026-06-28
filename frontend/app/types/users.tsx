@@ -9,3 +9,10 @@ export interface User {
 export interface UserResponse {
   user: User;
 }
+
+export interface UserUpdate {
+  username: string;
+  email: string;
+  bio: string | null;
+  image: string | null;
+}
