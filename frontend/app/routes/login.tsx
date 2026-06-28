@@ -6,6 +6,8 @@ import type { UserResponse } from "~/types/users";
 import type { GenericError } from "~/types/error";
 import { useNavigate } from "react-router";
 import { useAuth } from "~/context/auth";
+import { useLocation } from "react-router";
+import { ErrorMessages } from "~/components/errorMessages";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -16,6 +18,8 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || "/";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,7 +53,7 @@ export default function Login() {
       }
 
       login(data.user);
-      navigate("/");
+      navigate(from, { replace: true });
     } catch (err) {
       setErrors({ general: [stdErrorMsg] });
     } finally {
@@ -69,17 +73,7 @@ export default function Login() {
 
             {isLoading && <p className="text-xs-center">trying to login...</p>}
 
-            {errors && (
-              <ul className="error-messages">
-                {Object.entries(errors).map(([field, messages]) =>
-                  messages.map((msg) => (
-                    <li key={`${field}-${msg}`}>
-                      {field} {msg}
-                    </li>
-                  )),
-                )}
-              </ul>
-            )}
+            <ErrorMessages errors={errors} />
 
             <form onSubmit={handleSubmit}>
               <fieldset className="form-group">

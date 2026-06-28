@@ -6,6 +6,7 @@ import type { UserResponse } from "~/types/users";
 import type { GenericError } from "~/types/error";
 import { useNavigate } from "react-router";
 import { useAuth } from "~/context/auth";
+import { ErrorMessages } from "~/components/errorMessages";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -74,17 +75,7 @@ export default function register() {
               <p className="text-xs-center">trying to register...</p>
             )}
 
-            {errors && (
-              <ul className="error-messages">
-                {Object.entries(errors).map(([field, messages]) =>
-                  messages.map((msg) => (
-                    <li key={`${field}-${msg}`}>
-                      {field} {msg}
-                    </li>
-                  )),
-                )}
-              </ul>
-            )}
+            <ErrorMessages errors={errors} />
 
             <form onSubmit={handleSubmit}>
               <fieldset className="form-group">
