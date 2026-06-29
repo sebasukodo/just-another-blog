@@ -16,3 +16,10 @@ export interface UserUpdate {
   bio: string | null;
   image: string | null;
 }
+
+export interface Author {
+  username: string;
+  email: string;
+  bio: string | null;
+  image: string | null;
+}

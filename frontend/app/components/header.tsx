@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { useAuth } from "~/context/auth";
 import defaultAvatar from "~/assets/default-avatar.svg";
 import { NavLink } from "react-router";
+import { userProfilePicture } from "~/utils";
 
 export default function Header() {
   const { user } = useAuth();
@@ -57,7 +58,7 @@ export default function Header() {
                 to={`/profile/${user.username}`}
               >
                 <img
-                  src={user.image != null ? user.image : defaultAvatar}
+                  src={userProfilePicture(user.image)}
                   className="user-pic"
                 />
                 {user.username}
