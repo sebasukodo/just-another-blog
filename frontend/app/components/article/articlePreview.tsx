@@ -6,12 +6,12 @@ export default function ArticlePreview({ article }: { article: Article }) {
   return (
     <div className="article-preview">
       <div className="article-meta">
-        <Link to={`/profile/${article.Author.username}`}>
-          <img src={userProfilePicture(article.Author.image)} />
+        <Link to={`/profile/${article.author.username}`}>
+          <img src={userProfilePicture(article.author.image)} />
         </Link>
         <div className="info">
-          <Link to={`/profile/${article.Author.username}`} className="author">
-            {article.Author.username}
+          <Link to={`/profile/${article.author.username}`} className="author">
+            {article.author.username}
           </Link>
           <span className="date">{formatDate(article.createdAt)}</span>
         </div>

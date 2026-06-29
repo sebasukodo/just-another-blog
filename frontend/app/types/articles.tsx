@@ -10,5 +10,14 @@ export interface Article {
   updatedAt: string;
   favorited: boolean;
   favoritesCount: number;
-  Author: Author;
+  author: Author;
+}
+
+export interface Articles {
+  articles: Article[];
+  articlesCount: number;
+}
+
+export interface Tags {
+  tags: string[];
 }

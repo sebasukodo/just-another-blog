@@ -1,6 +1,5 @@
 import { Link } from "react-router";
 import { useAuth } from "~/context/auth";
-import defaultAvatar from "~/assets/default-avatar.svg";
 import { NavLink } from "react-router";
 import { userProfilePicture } from "~/utils";
 

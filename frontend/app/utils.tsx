@@ -9,10 +9,10 @@ export function getAPIEndpoint(endpoint: string): string {
     : `${host}/${endpoint}`;
 }
 
-export function isErrorResponse(
-  data: UserResponse | GenericError,
+export function isErrorResponse<T>(
+  data: T | GenericError,
 ): data is GenericError {
-  return "errors" in data;
+  return "errors" in (data as object);
 }
 
 export const stdErrorMsg = "network error, please try again.";
