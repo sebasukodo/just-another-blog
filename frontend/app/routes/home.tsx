@@ -183,20 +183,22 @@ export default function Home() {
               </ul>
             </div>
 
-            {isArticleLoading && (
-              <p className="text-xs-center">fetching data from server...</p>
-            )}
+            {isArticleLoading && <p>fetching data from server...</p>}
 
             <ErrorMessages errors={articleErrors} />
 
-            {articles.articles.map((article) => {
-              return (
-                <ArticlePreview
-                  article={article}
-                  key={`article-${article.slug}`}
-                />
-              );
-            })}
+            {articles.articlesCount > 0 ? (
+              articles.articles.map((article) => {
+                return (
+                  <ArticlePreview
+                    article={article}
+                    key={`article-${article.slug}`}
+                  />
+                );
+              })
+            ) : (
+              <p>no articles found</p>
+            )}
 
             {totalPages > 1 && (
               <ul className="pagination">
@@ -230,27 +232,29 @@ export default function Home() {
             <div className="sidebar">
               <p>Popular Tags</p>
 
-              {isTagsLoading && (
-                <p className="text-xs-center">fetching data from server...</p>
-              )}
+              {isTagsLoading && <p>fetching data from server...</p>}
 
               <ErrorMessages errors={tagsErrors} />
 
               <div className="tag-list">
-                {popularTags.tags.map((tag, index) => {
-                  return (
-                    <button
-                      onClick={() => {
-                        setTag(tag);
-                        handleTag(1, tag);
-                      }}
-                      key={`tag-${index}-${tag}`}
-                      className="tag-pill tag-default"
-                    >
-                      {tag}
-                    </button>
-                  );
-                })}
+                {popularTags.tags.length > 0 ? (
+                  popularTags.tags.map((tag, index) => {
+                    return (
+                      <button
+                        onClick={() => {
+                          setTag(tag);
+                          handleTag(1, tag);
+                        }}
+                        key={`tag-${index}-${tag}`}
+                        className="tag-pill tag-default"
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <p>no articles found</p>
+                )}
               </div>
             </div>
           </div>
