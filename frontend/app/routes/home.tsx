@@ -44,14 +44,21 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(articles.articlesCount / searchLimit);
 
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (user?.token) {
+    headers.Authorization = `Token ${user.token}`;
+  }
+
   useEffect(() => {
+    if (isAuthLoading) return;
+
     let url = "/articles";
     if (activeTab == "feed") {
       url = "/articles/feed";
     }
     fetchArticles(url);
     fetchTags();
-  }, []);
+  }, [isAuthLoading]);
 
   async function fetchTags() {
     setIsTagsLoading(true);
@@ -78,12 +85,6 @@ export default function Home() {
   async function fetchArticles(apiPath: string) {
     setIsArticleLoading(true);
     setArticleErrors(null);
-
-    const token = localStorage.getItem("token");
-    const headers: HeadersInit = { "Content-Type": "application/json" };
-    if (token) {
-      headers.Authorization = `Token ${token}`;
-    }
 
     try {
       const res = await fetch(getAPIEndpoint(apiPath), {
@@ -253,7 +254,7 @@ export default function Home() {
                     );
                   })
                 ) : (
-                  <p>no articles found</p>
+                  <p>no tags found</p>
                 )}
               </div>
             </div>
