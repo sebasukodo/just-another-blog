@@ -12,6 +12,6 @@ export default [
   layout("components/protectedLayout.tsx", [
     route("/settings", "routes/settings.tsx"),
   ]),
-  route("/profile/:username", "routes/profile.tsx"),
+  route("/profile/:username/:tab?", "routes/profile.tsx"),
   route("*", "routes/catchAll.tsx"),
 ] satisfies RouteConfig;

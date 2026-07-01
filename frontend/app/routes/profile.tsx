@@ -28,7 +28,7 @@ type FeedType = "myArticles" | "favorites";
 
 export default function Profile() {
   const { user, isAuthLoading } = useAuth();
-  const { username } = useParams();
+  const { username, tab } = useParams();
   const navigate = useNavigate();
 
   const [profileUser, setProfileUser] = useState<Profile | null>(null);
@@ -39,7 +39,7 @@ export default function Profile() {
   > | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<FeedType>("myArticles");
+  const activeTab: FeedType = tab === "favorites" ? "favorites" : "myArticles";
 
   const [articles, setArticles] = useState<Articles>({
     articles: [],
@@ -91,12 +91,19 @@ export default function Profile() {
     if (profileUser) {
       fetchArticles(1, activeTab);
     }
-  }, [profileUser?.username]);
+  }, [profileUser?.username, activeTab]);
+
+  function handleTabChange(tab: FeedType) {
+    navigate(
+      tab === "favorites"
+        ? `/profile/${username}/favorites`
+        : `/profile/${username}`,
+    );
+  }
 
   async function fetchArticles(page: number, tab: FeedType) {
     setIsLoading(true);
     setErrors(null);
-    setActiveTab(tab);
     setCurrentPage(page);
 
     const filter =
@@ -241,7 +248,7 @@ export default function Profile() {
               <ul className="nav nav-pills outline-active">
                 <li className="nav-item">
                   <button
-                    onClick={() => fetchArticles(1, "myArticles")}
+                    onClick={() => handleTabChange("myArticles")}
                     className={
                       activeTab == "myArticles" ? "nav-link active" : "nav-link"
                     }
@@ -251,7 +258,7 @@ export default function Profile() {
                 </li>
                 <li className="nav-item">
                   <button
-                    onClick={() => fetchArticles(1, "favorites")}
+                    onClick={() => handleTabChange("favorites")}
                     className={
                       activeTab == "favorites" ? "nav-link active" : "nav-link"
                     }
