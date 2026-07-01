@@ -2,7 +2,13 @@ import { Link } from "react-router";
 import type { Article } from "~/types/articles";
 import { formatDate, userProfilePicture } from "~/utils";
 
-export default function ArticlePreview({ article }: { article: Article }) {
+export default function ArticlePreview({
+  article,
+  onFavorite,
+}: {
+  article: Article;
+  onFavorite: (article: Article) => void;
+}) {
   return (
     <div className="article-preview">
       <div className="article-meta">
@@ -15,8 +21,14 @@ export default function ArticlePreview({ article }: { article: Article }) {
           </Link>
           <span className="date">{formatDate(article.createdAt)}</span>
         </div>
-        <button className="btn btn-outline-primary btn-sm pull-xs-right">
-          <i className="ion-heart"></i> {article.favoritesCount}
+        <button
+          onClick={() => onFavorite(article)}
+          className="btn btn-outline-primary btn-sm pull-xs-right"
+        >
+          <i
+            className={article.favorited ? "ion-heart-broken" : "ion-heart"}
+          ></i>{" "}
+          {article.favoritesCount}
         </button>
       </div>
       <Link to={`/article/${article.slug}`} className="preview-link">

@@ -2,7 +2,12 @@ import { useAuth } from "~/context/auth";
 import type { Route } from "./+types/home";
 import { useEffect, useState } from "react";
 import { getAPIEndpoint, isErrorResponse, stdErrorMsg } from "~/utils";
-import type { Articles, Tags } from "~/types/articles";
+import type {
+  Article,
+  ArticleResponse,
+  Articles,
+  Tags,
+} from "~/types/articles";
 import type { GenericError } from "~/types/error";
 import ArticlePreview from "~/components/article/articlePreview";
 import { ErrorMessages } from "~/components/errorMessages";
@@ -133,6 +138,37 @@ export default function Home() {
     setCurrentPage(page);
   }
 
+  async function handleFavorite(article: Article) {
+    if (!user) return;
+
+    const method = article.favorited ? "DELETE" : "POST";
+    setArticleErrors(null);
+    try {
+      const res = await fetch(
+        getAPIEndpoint(`articles/${article.slug}/favorite`),
+        {
+          method: method,
+          headers: headers,
+        },
+      );
+
+      const data: ArticleResponse | GenericError = await res.json();
+      if (!res.ok || isErrorResponse(data)) {
+        setArticleErrors((data as GenericError).errors);
+        return;
+      }
+
+      setArticles((prev) => ({
+        ...prev,
+        articles: prev.articles.map((a) =>
+          a.slug === data.article.slug ? data.article : a,
+        ),
+      }));
+    } catch (err) {
+      setArticleErrors({ general: [stdErrorMsg] });
+    }
+  }
+
   return (
     <div className="home-page">
       <div className="banner">
@@ -193,6 +229,7 @@ export default function Home() {
                 return (
                   <ArticlePreview
                     article={article}
+                    onFavorite={handleFavorite}
                     key={`article-${article.slug}`}
                   />
                 );

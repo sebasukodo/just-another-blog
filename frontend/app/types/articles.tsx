@@ -13,6 +13,10 @@ export interface Article {
   author: Author;
 }
 
+export interface ArticleResponse {
+  article: Article;
+}
+
 export interface Articles {
   articles: Article[];
   articlesCount: number;

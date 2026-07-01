@@ -12,7 +12,7 @@ import type { Profile, ProfileResponse } from "~/types/profile";
 import type { GenericError } from "~/types/error";
 import { ErrorMessages } from "~/components/errorMessages";
 import { Link } from "react-router";
-import type { Articles } from "~/types/articles";
+import type { Article, ArticleResponse, Articles } from "~/types/articles";
 import ArticlePreview from "~/components/article/articlePreview";
 import { useNavigate } from "react-router";
 
@@ -158,6 +158,37 @@ export default function Profile() {
     }
   }
 
+  async function handleFavorite(article: Article) {
+    if (!user) return;
+
+    const method = article.favorited ? "DELETE" : "POST";
+    setErrors(null);
+    try {
+      const res = await fetch(
+        getAPIEndpoint(`articles/${article.slug}/favorite`),
+        {
+          method: method,
+          headers: headers,
+        },
+      );
+
+      const data: ArticleResponse | GenericError = await res.json();
+      if (!res.ok || isErrorResponse(data)) {
+        setErrors((data as GenericError).errors);
+        return;
+      }
+
+      setArticles((prev) => ({
+        ...prev,
+        articles: prev.articles.map((a) =>
+          a.slug === data.article.slug ? data.article : a,
+        ),
+      }));
+    } catch (err) {
+      setErrors({ general: [stdErrorMsg] });
+    }
+  }
+
   if (!profileUser && errors) return <ErrorMessages errors={errors} />;
   else if (!profileUser) return null;
 
@@ -240,6 +271,7 @@ export default function Profile() {
                 return (
                   <ArticlePreview
                     article={article}
+                    onFavorite={handleFavorite}
                     key={`article-${article.slug}`}
                   />
                 );
