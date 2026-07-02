@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
 import { useNavigate } from "react-router";
-import { useAuth } from "~/context/auth";
 import type {
   Article,
   ArticleResponse,
@@ -23,8 +22,9 @@ import { Link } from "react-router";
 import { ErrorMessages } from "~/components/errorMessages";
 import CommentComponent from "~/components/article/comment";
 import type { Route } from "./+types/article";
+import { useAuth } from "~/hooks/useAuth";
 
-export function meta({}: Route.MetaArgs) {
+export function meta(_args: Route.MetaArgs) {
   return [
     { title: "Article Page" },
     { name: "description", content: "this is an article" },
@@ -51,10 +51,13 @@ export default function Article() {
 
   const [commentInput, setCommentInput] = useState("");
 
-  const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (user?.token) {
-    headers.Authorization = `Token ${user.token}`;
-  }
+  const headers = useMemo(() => {
+    const h: HeadersInit = { "Content-Type": "application/json" };
+    if (user?.token) {
+      h.Authorization = `Token ${user.token}`;
+    }
+    return h;
+  }, [user]);
 
   useEffect(() => {
     async function getArticle() {
@@ -75,7 +78,7 @@ export default function Article() {
         }
 
         setArticle(data.article);
-      } catch (err) {
+      } catch {
         setErrors({ general: [stdErrorMsg] });
       } finally {
         setIsLoading(false);
@@ -100,7 +103,7 @@ export default function Article() {
         }
 
         setComments(data.comments);
-      } catch (err) {
+      } catch {
         setCommentErrors({ general: [stdErrorMsg] });
       } finally {
         setIsCommentLoading(false);
@@ -109,7 +112,7 @@ export default function Article() {
 
     getArticle();
     getComments();
-  }, [isAuthLoading, slug]);
+  }, [isAuthLoading, slug, headers]);
 
   async function handleDelete() {
     if (!isAuthor) return;
@@ -126,7 +129,7 @@ export default function Article() {
       }
 
       navigate("/");
-    } catch (err) {
+    } catch {
       setErrors({ general: [stdErrorMsg] });
     }
   }
@@ -163,7 +166,7 @@ export default function Article() {
             }
           : prev,
       );
-    } catch (err) {
+    } catch {
       setErrors({ general: [stdErrorMsg] });
     }
   }
@@ -190,7 +193,7 @@ export default function Article() {
       }
 
       setArticle(data.article);
-    } catch (err) {
+    } catch {
       setErrors({ general: [stdErrorMsg] });
     }
   }
@@ -222,7 +225,7 @@ export default function Article() {
 
       setComments((prev) => [...prev, data.comment]);
       setCommentInput("");
-    } catch (err) {
+    } catch {
       setCommentErrors({ general: [stdErrorMsg] });
     }
   }
@@ -249,7 +252,7 @@ export default function Article() {
       setComments((prev) => {
         return prev.filter((old) => old.id !== comment.id);
       });
-    } catch (err) {
+    } catch {
       setCommentErrors({ general: [stdErrorMsg] });
     }
   }

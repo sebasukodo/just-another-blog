@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { ErrorMessages } from "~/components/errorMessages";
-import { useAuth } from "~/context/auth";
+import { useAuth } from "~/hooks/useAuth";
 import type { GenericError } from "~/types/error";
 import type { UserResponse } from "~/types/users";
 import { getAPIEndpoint, isErrorResponse, stdErrorMsg } from "~/utils";
 import type { Route } from "./+types/settings";
 
-export function meta({}: Route.MetaArgs) {
+export function meta(_args: Route.MetaArgs) {
   return [
     { title: "User Settings" },
     { name: "description", content: "user settings page" },
@@ -15,14 +15,15 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Settings() {
   const { user, logout, updateUser } = useAuth();
-  if (!user) return;
 
   const [errors, setErrors] = useState<Record<string, string[]> | null>(null);
-  const [username, setUsername] = useState<string>(user.username);
-  const [email, setEmail] = useState<string>(user.email);
+  const [username, setUsername] = useState<string>(user?.username ?? "");
+  const [email, setEmail] = useState<string>(user?.email ?? "");
   const [password, setPassword] = useState<string | null>(null);
-  const [bio, setBio] = useState<string | null>(user.bio);
-  const [image, setImage] = useState<string | null>(user.image);
+  const [bio, setBio] = useState<string | null>(user?.bio ?? null);
+  const [image, setImage] = useState<string | null>(user?.image ?? null);
+
+  if (!user) return null;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -49,7 +50,7 @@ export default function Settings() {
       }
 
       updateUser(data.user);
-    } catch (err) {
+    } catch {
       setErrors({ general: [stdErrorMsg] });
     }
   }

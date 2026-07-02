@@ -1,5 +1,4 @@
 import { Link } from "react-router";
-import { useAuth } from "~/context/auth";
 import type { Comment } from "~/types/articles";
 import { formatDate, userProfilePicture } from "~/utils";
 

@@ -1,6 +1,6 @@
-import { useAuth } from "~/context/auth";
+import { useAuth } from "~/hooks/useAuth";
 import type { Route } from "./+types/home";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getAPIEndpoint, isErrorResponse, stdErrorMsg } from "~/utils";
 import type {
   Article,
@@ -12,7 +12,7 @@ import type { GenericError } from "~/types/error";
 import ArticlePreview from "~/components/article/articlePreview";
 import { ErrorMessages } from "~/components/errorMessages";
 
-export function meta({}: Route.MetaArgs) {
+export function meta(_args: Route.MetaArgs) {
   return [
     { title: "conduit" },
     { name: "description", content: "Welcome to conduit!" },
@@ -49,10 +49,13 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(articles.articlesCount / searchLimit);
 
-  const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (user?.token) {
-    headers.Authorization = `Token ${user.token}`;
-  }
+  const headers = useMemo(() => {
+    const h: HeadersInit = { "Content-Type": "application/json" };
+    if (user?.token) {
+      h.Authorization = `Token ${user.token}`;
+    }
+    return h;
+  }, [user]);
 
   useEffect(() => {
     if (isAuthLoading) return;
@@ -63,7 +66,7 @@ export default function Home() {
     }
     fetchArticles(url);
     fetchTags();
-  }, [isAuthLoading]);
+  }, [isAuthLoading, activeTab]);
 
   async function fetchTags() {
     setIsTagsLoading(true);
@@ -80,7 +83,7 @@ export default function Home() {
       }
 
       setPopularTags(data);
-    } catch (err) {
+    } catch {
       setTagsErrors({ general: [stdErrorMsg] });
     } finally {
       setIsTagsLoading(false);
@@ -107,7 +110,7 @@ export default function Home() {
         articles: data.articles,
         articlesCount: data.articlesCount,
       });
-    } catch (err) {
+    } catch {
       setArticleErrors({ general: [stdErrorMsg] });
     } finally {
       setIsArticleLoading(false);
@@ -164,7 +167,7 @@ export default function Home() {
           a.slug === data.article.slug ? data.article : a,
         ),
       }));
-    } catch (err) {
+    } catch {
       setArticleErrors({ general: [stdErrorMsg] });
     }
   }

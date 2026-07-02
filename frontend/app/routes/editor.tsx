@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { useParams } from "react-router";
 import { ErrorMessages } from "~/components/errorMessages";
-import { useAuth } from "~/context/auth";
+import { useAuth } from "~/hooks/useAuth";
 import type {
   Article,
   ArticleFormData,
@@ -12,7 +12,7 @@ import type { GenericError } from "~/types/error";
 import { getAPIEndpoint, isErrorResponse, stdErrorMsg } from "~/utils";
 import type { Route } from "./+types/editor";
 
-export function meta({}: Route.MetaArgs) {
+export function meta(_args: Route.MetaArgs) {
   return [
     { title: "Edit/Create Articles" },
     {
@@ -41,10 +41,13 @@ export default function Editor() {
   const [errors, setErrors] = useState<Record<string, string[]> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (user?.token) {
-    headers.Authorization = `Token ${user.token}`;
-  }
+  const headers = useMemo(() => {
+    const h: HeadersInit = { "Content-Type": "application/json" };
+    if (user?.token) {
+      h.Authorization = `Token ${user.token}`;
+    }
+    return h;
+  }, [user]);
 
   useEffect(() => {
     if (isAuthLoading) return;
@@ -83,14 +86,14 @@ export default function Editor() {
           body: data.article.body ?? "",
         });
         setTags(data.article.tagList);
-      } catch (err) {
+      } catch {
         setErrors({ general: [stdErrorMsg] });
       } finally {
         setIsLoading(false);
       }
     }
     getArticle();
-  }, [editMode, isAuthLoading, slug]);
+  }, [editMode, isAuthLoading, slug, user, navigate]);
 
   async function handleSubmit() {
     setIsLoading(true);
@@ -128,7 +131,7 @@ export default function Editor() {
 
       setArticle(data.article);
       navigate(`/article/${data.article.slug}`);
-    } catch (err) {
+    } catch {
       setErrors({ general: [stdErrorMsg] });
     } finally {
       setIsLoading(false);

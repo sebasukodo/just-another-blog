@@ -5,17 +5,17 @@ import { getAPIEndpoint, isErrorResponse, stdErrorMsg } from "~/utils";
 import type { UserResponse } from "~/types/users";
 import type { GenericError } from "~/types/error";
 import { useNavigate } from "react-router";
-import { useAuth } from "~/context/auth";
+import { useAuth } from "~/hooks/useAuth";
 import { ErrorMessages } from "~/components/errorMessages";
 
-export function meta({}: Route.MetaArgs) {
+export function meta(_args: Route.MetaArgs) {
   return [
     { title: "Register" },
     { name: "description", content: "user registration page" },
   ];
 }
 
-export default function register() {
+export default function Register() {
   const navigate = useNavigate();
 
   const [username, setUsername] = useState("");
@@ -54,7 +54,7 @@ export default function register() {
 
       login(data.user);
       navigate("/");
-    } catch (err) {
+    } catch {
       setErrors({ general: [stdErrorMsg] });
     } finally {
       setIsLoading(false);

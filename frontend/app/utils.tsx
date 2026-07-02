@@ -1,5 +1,4 @@
 import type { GenericError } from "./types/error";
-import type { UserResponse } from "./types/users";
 import defaultAvatar from "~/assets/default-avatar.svg";
 
 export function getAPIEndpoint(endpoint: string): string {

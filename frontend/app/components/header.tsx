@@ -1,6 +1,6 @@
 import { Link } from "react-router";
-import { useAuth } from "~/context/auth";
 import { NavLink } from "react-router";
+import { useAuth } from "~/hooks/useAuth";
 import { userProfilePicture } from "~/utils";
 
 export default function Header() {

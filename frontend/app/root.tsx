@@ -1,17 +1,9 @@
-import {
-  isRouteErrorResponse,
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-} from "react-router";
-
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import type { Route } from "./+types/root";
 import "./styles.css";
-import { AuthProvider } from "./context/auth";
 import Header from "./components/header";
 import Footer from "./components/footer";
+import { AuthProvider } from "./context/AuthProvider";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (

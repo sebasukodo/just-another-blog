@@ -29,8 +29,25 @@ export default [
     rules: {
       ...reactHooks.configs.recommended.rules,
 
-      "react-refresh/only-export-components": "warn",
-      "@typescript-eslint/no-unused-vars": "error",
+      "react-refresh/only-export-components": [
+        "warn",
+        {
+          allowExportNames: [
+            "meta",
+            "links",
+            "loader",
+            "action",
+            "handle",
+            "shouldRevalidate",
+            "ErrorBoundary",
+            "HydrateFallback",
+          ],
+        },
+      ],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/explicit-function-return-type": "off",
     },

@@ -5,11 +5,11 @@ import { getAPIEndpoint, isErrorResponse, stdErrorMsg } from "~/utils";
 import type { UserResponse } from "~/types/users";
 import type { GenericError } from "~/types/error";
 import { useNavigate } from "react-router";
-import { useAuth } from "~/context/auth";
+import { useAuth } from "~/hooks/useAuth";
 import { useLocation } from "react-router";
 import { ErrorMessages } from "~/components/errorMessages";
 
-export function meta({}: Route.MetaArgs) {
+export function meta(_args: Route.MetaArgs) {
   return [
     { title: "Login" },
     { name: "description", content: "login page to access personal content" },
@@ -54,7 +54,7 @@ export default function Login() {
 
       login(data.user);
       navigate(from, { replace: true });
-    } catch (err) {
+    } catch {
       setErrors({ general: [stdErrorMsg] });
     } finally {
       setIsLoading(false);

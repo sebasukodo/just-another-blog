@@ -1,6 +1,6 @@
-import { useAuth } from "~/context/auth";
+import { useAuth } from "~/hooks/useAuth";
 import type { Route } from "./+types/profile";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getAPIEndpoint,
   isErrorResponse,
@@ -16,7 +16,7 @@ import type { Article, ArticleResponse, Articles } from "~/types/articles";
 import ArticlePreview from "~/components/article/articlePreview";
 import { useNavigate } from "react-router";
 
-export function meta({}: Route.MetaArgs) {
+export function meta(_args: Route.MetaArgs) {
   return [
     { title: "User Profile" },
     { name: "description", content: "this is a profile page" },
@@ -52,10 +52,13 @@ export default function Profile() {
   const isAuthor =
     profileUser != null ? user?.username === profileUser.username : false;
 
-  const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (user?.token) {
-    headers.Authorization = `Token ${user.token}`;
-  }
+  const headers = useMemo(() => {
+    const h: HeadersInit = { "Content-Type": "application/json" };
+    if (user?.token) {
+      h.Authorization = `Token ${user.token}`;
+    }
+    return h;
+  }, [user]);
 
   useEffect(() => {
     if (isAuthLoading) return;
@@ -78,20 +81,20 @@ export default function Profile() {
         }
 
         setProfileUser(data.profile);
-      } catch (err) {
+      } catch {
         setErrors({ general: [stdErrorMsg] });
       } finally {
         setIsLoading(false);
       }
     }
     getProfile();
-  }, [isAuthLoading, username]);
+  }, [isAuthLoading, username, headers, user?.token]);
 
   useEffect(() => {
     if (profileUser) {
       fetchArticles(1, activeTab);
     }
-  }, [profileUser?.username, activeTab]);
+  }, [profileUser, activeTab]);
 
   function handleTabChange(tab: FeedType) {
     navigate(
@@ -128,7 +131,7 @@ export default function Profile() {
         articles: data.articles,
         articlesCount: data.articlesCount,
       });
-    } catch (err) {
+    } catch {
       setErrors({ general: [stdErrorMsg] });
     } finally {
       setIsLoading(false);
@@ -160,7 +163,7 @@ export default function Profile() {
       }
 
       setProfileUser(data.profile);
-    } catch (err) {
+    } catch {
       setFollowErrors({ general: [stdErrorMsg] });
     }
   }
@@ -191,7 +194,7 @@ export default function Profile() {
           a.slug === data.article.slug ? data.article : a,
         ),
       }));
-    } catch (err) {
+    } catch {
       setErrors({ general: [stdErrorMsg] });
     }
   }
@@ -203,6 +206,7 @@ export default function Profile() {
     <div className="profile-page">
       <div className="user-info">
         <div className="container">
+          <ErrorMessages errors={followErrors} />
           <div className="row">
             <div className="col-xs-12 col-md-10 offset-md-1">
               <img
