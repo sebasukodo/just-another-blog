@@ -8,9 +8,8 @@ This project is a self-hostable fullstack blogging platform built with Go and Re
 The project is inspired by the excellent [RealWorld](https://github.com/realworld-apps/realworld) specification and aims to provide a clean, modern reference implementation for a real-world web application.
 
 ## Project Status
-
 The backend is feature-complete and passes all [RealWorld hurl tests](https://github.com/realworld-apps/realworld/tree/main/specs/api).
-The frontend is not yet implemented.
+The frontend is now fully implemented and functional, though it has not yet undergone thorough testing.
 
 ## Quick Start
 To run the project locally, see [Run Development Server](#run-development-server).
