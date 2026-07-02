@@ -4,6 +4,14 @@ import { useAuth } from "~/context/auth";
 import type { GenericError } from "~/types/error";
 import type { UserResponse } from "~/types/users";
 import { getAPIEndpoint, isErrorResponse, stdErrorMsg } from "~/utils";
+import type { Route } from "./+types/settings";
+
+export function meta({}: Route.MetaArgs) {
+  return [
+    { title: "User Settings" },
+    { name: "description", content: "user settings page" },
+  ];
+}
 
 export default function Settings() {
   const { user, logout, updateUser } = useAuth();

@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import type { Route } from "./+types/main";
+import type { Route } from "./+types/register";
 import { useEffect, useState } from "react";
 import { getAPIEndpoint, isErrorResponse, stdErrorMsg } from "~/utils";
 import type { UserResponse } from "~/types/users";

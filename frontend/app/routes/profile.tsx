@@ -1,5 +1,5 @@
 import { useAuth } from "~/context/auth";
-import type { Route } from "./+types/main";
+import type { Route } from "./+types/profile";
 import { useEffect, useState } from "react";
 import {
   getAPIEndpoint,

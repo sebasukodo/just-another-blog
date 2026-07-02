@@ -22,6 +22,14 @@ import {
 import { Link } from "react-router";
 import { ErrorMessages } from "~/components/errorMessages";
 import CommentComponent from "~/components/article/comment";
+import type { Route } from "./+types/article";
+
+export function meta({}: Route.MetaArgs) {
+  return [
+    { title: "Article Page" },
+    { name: "description", content: "this is an article" },
+  ];
+}
 
 export default function Article() {
   const navigate = useNavigate();

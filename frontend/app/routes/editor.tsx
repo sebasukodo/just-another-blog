@@ -10,6 +10,17 @@ import type {
 } from "~/types/articles";
 import type { GenericError } from "~/types/error";
 import { getAPIEndpoint, isErrorResponse, stdErrorMsg } from "~/utils";
+import type { Route } from "./+types/editor";
+
+export function meta({}: Route.MetaArgs) {
+  return [
+    { title: "Edit/Create Articles" },
+    {
+      name: "description",
+      content: "this is a page to edit or create articles",
+    },
+  ];
+}
 
 export default function Editor() {
   const navigate = useNavigate();
