@@ -6,7 +6,11 @@
     "build": "react-router build",
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
-    "typecheck": "react-router typegen && tsc"
+    "test": "vitest run",
+    "typecheck": "react-router typegen && tsc",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@react-router/node": "7.15.1",
@@ -14,16 +18,25 @@
     "isbot": "^5.1.36",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-markdown": "^10.1.0",
     "react-router": "7.15.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@react-router/dev": "7.15.1",
-    "@tailwindcss/vite": "^4.2.2",
     "@types/node": "^22",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "tailwindcss": "^4.2.2",
+    "@vitest/coverage-v8": "^4.1.9",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "prettier": "^3.9.4",
     "typescript": "^5.9.3",
-    "vite": "^8.0.3"
+    "typescript-eslint": "^8.62.1",
+    "vite": "^8.0.3",
+    "vitest": "^4.1.9"
   }
 }

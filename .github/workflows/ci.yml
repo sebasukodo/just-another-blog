@@ -25,7 +25,7 @@ jobs:
 
       - name: Check Formatting Issues
         working-directory: ./backend
-        run: test -z $(go fmt ./...)
+        run: test -z "$(go fmt ./...)"
 
       - name: Install staticcheck
         run: go install honnef.co/go/tools/cmd/staticcheck@latest
@@ -40,3 +40,33 @@ jobs:
       - name: Run Gosec
         working-directory: ./backend
         run: gosec ./...
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Type check
+        working-directory: ./frontend
+        run: npm run typecheck
+
+      - name: Check formatting
+        working-directory: ./frontend
+        run: npm run format:check
+
+      - name: Lint
+        working-directory: ./frontend
+        run: npm run lint
