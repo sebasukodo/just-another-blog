@@ -228,6 +228,7 @@ func (h *Handler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		}
 		updateInfo.NewSlug = stringToNullString(newSlug)
 		noUpdate = false
+		slug = newSlug
 	}
 	if articleInfo.Article.Body != "" && articleInfo.Article.Body != article.Body {
 		updateInfo.Body = stringToNullString(articleInfo.Article.Body)
