@@ -14,5 +14,6 @@ export default [
     route("/editor/:slug?", "routes/editor.tsx"),
   ]),
   route("/profile/:username/:tab?", "routes/profile.tsx"),
+  route("/article/:slug", "routes/article.tsx"),
   route("*", "routes/catchAll.tsx"),
 ] satisfies RouteConfig;

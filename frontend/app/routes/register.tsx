@@ -33,7 +33,7 @@ export default function register() {
     }
   }, [isAuthLoading, user, navigate]);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormEvent>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErrors(null);
     setIsLoading(false);

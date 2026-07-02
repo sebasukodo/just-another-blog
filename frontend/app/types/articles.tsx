@@ -28,6 +28,21 @@ export interface ArticleFormData {
   body: string;
 }
 
+export interface Comment {
+  id: number;
+  createdAt: string;
+  updatedAt: string;
+  body: string;
+  author: Author;
+}
+export interface CommentResponse {
+  comment: Comment;
+}
+
+export interface CommentsResponse {
+  comments: Comment[];
+}
+
 export interface Tags {
   tags: string[];
 }

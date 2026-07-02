@@ -158,6 +158,7 @@ export default function Editor() {
       <div className="container page">
         <div className="row">
           <div className="col-md-10 offset-md-1 col-xs-12">
+            {isLoading && <p>fetching data from server...</p>}
             <ErrorMessages errors={errors} />
 
             <form

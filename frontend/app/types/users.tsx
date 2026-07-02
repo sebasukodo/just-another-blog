@@ -19,7 +19,7 @@ export interface UserUpdate {
 
 export interface Author {
   username: string;
-  email: string;
   bio: string | null;
   image: string | null;
+  following: boolean;
 }
