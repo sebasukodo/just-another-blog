@@ -1,7 +1,6 @@
 import { useContext, useEffect, useState, type ReactNode } from "react";
 import { createContext } from "react";
 import { useNavigate } from "react-router";
-import { Navigate } from "react-router";
 import type { AuthContextType } from "~/types/context";
 import type { GenericError } from "~/types/error";
 import type { User, UserResponse, UserUpdate } from "~/types/users";

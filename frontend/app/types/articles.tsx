@@ -22,6 +22,12 @@ export interface Articles {
   articlesCount: number;
 }
 
+export interface ArticleFormData {
+  title: string;
+  description: string;
+  body: string;
+}
+
 export interface Tags {
   tags: string[];
 }

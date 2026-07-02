@@ -11,6 +11,7 @@ export default [
   route("/register", "routes/register.tsx"),
   layout("components/protectedLayout.tsx", [
     route("/settings", "routes/settings.tsx"),
+    route("/editor/:slug?", "routes/editor.tsx"),
   ]),
   route("/profile/:username/:tab?", "routes/profile.tsx"),
   route("*", "routes/catchAll.tsx"),
