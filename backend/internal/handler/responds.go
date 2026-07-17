@@ -84,7 +84,7 @@ func (h *Handler) RespondWithValidationErrors(w http.ResponseWriter, err error, 
 	}
 
 	respBody := GenericErrorModel{Errors: errorMap}
-	h.RespondWithJSON(w, http.StatusUnprocessableEntity, respBody)
+	h.RespondWithJSON(w, 422, respBody)
 }
 
 func (h *Handler) RespondWithDatabaseError(w http.ResponseWriter, field string, err error) {
