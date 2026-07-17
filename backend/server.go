@@ -99,7 +99,7 @@ func corsMiddleware(frontendUrl string) func(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 			if r.Method == http.MethodOptions {
-				w.WriteHeader(http.StatusNoContent)
+				w.WriteHeader(204)
 				return
 			}
 
